@@ -35,6 +35,7 @@
         @menuitem("/branches", "branches", "Branches", "git-branch", repository.branchList.length)
       }
       @menuitem("/releases", "releases", "Releases", "tag", repository.tags.length)
+<!--      
       @if(repository.repository.options.issuesOption != "DISABLE") {
         @menuitem("/issues", "issues", "Issues", "issue-opened", repository.issueCount)
         @menuitem("/pulls", "pulls", "Pull requests", "git-pull-request", repository.pullCount)
@@ -58,6 +59,7 @@
           @menuitem(link.path, link.id, link.label, link.icon.getOrElse("ruby"))
         }
       }
+-->
       @if(context.loginAccount.isDefined && (context.loginAccount.get.isAdmin || repository.managers.contains(context.loginAccount.get.userName))){
         @menuitem("/settings", "settings", "Settings", "gear")
       }
@@ -72,6 +74,7 @@
         @gitbucket.core.helper.html.error(error)
         <div class="head">
           <div class="pull-right">
+<!--            
             @gitbucket.core.plugin.PluginRegistry().getRepositoryHeaders.map { repositoryHeaderComponent =>
               @repositoryHeaderComponent(repository, context)
             }
@@ -100,6 +103,7 @@
               </div>
             }
           }
+-->
         </div>
       </div>
     </div>
