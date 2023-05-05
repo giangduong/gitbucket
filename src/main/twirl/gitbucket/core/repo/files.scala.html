@@ -41,6 +41,7 @@
         <a href="@helpers.url(repository)/tree/@helpers.encodeRefName((latestCommit.id :: pathList).mkString("/"))" data-hotkey="y" style="display: none;">Transfer to URL with SHA</a>
       </div>
       @if(pathList.isEmpty){
+<!--
         <div class="pull-right pc" style="margin-right: 5px;">
           <div class="btn-group">
             @if(context.platform != "linux" && context.platform != null){
@@ -48,6 +49,7 @@
             }
           </div>
         </div>
+-->
         <div class="pull-right pc">
           <div style="width: 240px; margin-right: 5px; margin-left: 5px;">
             @gitbucket.core.helper.html.copy("repository-url", "repository-url-copy", repository.httpUrl){
