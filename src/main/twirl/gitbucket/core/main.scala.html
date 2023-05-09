@@ -85,6 +85,8 @@
               </div>
             </form>
             <ul class="pc nav navbar-nav">
+              <li><a href="https://git.pythaverse.space"><i class="fa fa-home"></i> Home</a></li>
+              <li><a href="https://ide.pythaverse.space"><i class="fa fa-code"></i> Pythaverse IDE</a></li>              
 <!--              
               <li><a href="@context.path/dashboard/pulls">Pull requests</a></li>
               <li><a href="@context.path/dashboard/issues">Issues</a></li>
@@ -108,8 +110,8 @@
                       <ul class="menu">
                         @if(context.settings.basicBehavior.repositoryOperation.create || context.loginAccount.get.isAdmin){
                           <li><a href="@context.path/new">New repository</a></li>
+                          <li><a href="@context.path/groups/new">New group</a></li>                        
                         }
-                        <li><a href="@context.path/groups/new">New group</a></li>
                       </ul>
                     </li>
                   </ul>
