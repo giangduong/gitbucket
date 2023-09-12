@@ -110,7 +110,9 @@
                       <ul class="menu">
                         @if(context.settings.basicBehavior.repositoryOperation.create || context.loginAccount.get.isAdmin){
                           <li><a href="@context.path/new">New repository</a></li>
-                          <li><a href="@context.path/groups/new">New group</a></li>                        
+                        }
+                        @if(context.loginAccount.get.isAdmin){
+                          <li><a href="@context.path/groups/new">New group</a></li>
                         }
                       </ul>
                     </li>
