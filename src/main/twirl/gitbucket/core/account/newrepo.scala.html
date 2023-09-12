@@ -42,13 +42,15 @@ isCreateRepoOptionPublic: Boolean)(implicit context: gitbucket.core.controller.C
         <input type="text" name="description" id="description" class="form-control" />
       </fieldset>
       <fieldset class="border-top">
-        <label class="radio">
-          <input type="radio" name="isPrivate" value="false" @if(isCreateRepoOptionPublic){checked}>
-          <span class="strong"><i class="octicon octicon-repo"></i>&nbsp;</i>&nbsp;Public</span>
-          <div class="normal muted">
-            Anyone can see this repository. You choose who can commit.
-          </div>
-        </label>
+        @if(context.loginAccount.get.isAdmin){
+          <label class="radio">
+            <input type="radio" name="isPrivate" value="false" @if(isCreateRepoOptionPublic){checked}>
+            <span class="strong"><i class="octicon octicon-repo"></i>&nbsp;</i>&nbsp;Public</span>
+            <div class="normal muted">
+              Anyone can see this repository. You choose who can commit.
+            </div>
+          </label>
+        }
         <label class="radio">
           <input type="radio" name="isPrivate" value="true" @if(!isCreateRepoOptionPublic){checked}>
           <span class="strong"><i class="octicon octicon-lock"></i>&nbsp;</i>&nbsp;Private</span>
