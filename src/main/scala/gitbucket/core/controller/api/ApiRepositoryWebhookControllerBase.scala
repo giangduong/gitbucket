@@ -8,7 +8,7 @@ import gitbucket.core.util.Implicits._
 import org.scalatra.NoContent
 
 trait ApiRepositoryWebhookControllerBase extends ControllerBase {
-  self: RepositoryService with WebHookService with ReferrerAuthenticator with WritableUsersAuthenticator =>
+  self: RepositoryService & WebHookService & ReferrerAuthenticator & WritableUsersAuthenticator =>
 
   /*
    * i. List repository webhooks
@@ -113,8 +113,8 @@ trait ApiRepositoryWebhookControllerBase extends ControllerBase {
    */
 
   /*
- * vi. Test the push repository webhook
- * https://docs.github.com/en/rest/reference/repos#test-the-push-repository-webhook
- */
+   * vi. Test the push repository webhook
+   * https://docs.github.com/en/rest/reference/repos#test-the-push-repository-webhook
+   */
 
 }

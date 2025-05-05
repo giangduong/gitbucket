@@ -23,13 +23,8 @@ import scala.jdk.CollectionConverters._
 import scala.util.Using
 
 trait MergeService {
-  self: AccountService
-    with ActivityService
-    with IssuesService
-    with RepositoryService
-    with PullRequestService
-    with WebHookPullRequestService
-    with WebHookService =>
+  self: AccountService & ActivityService & IssuesService & RepositoryService & PullRequestService &
+    WebHookPullRequestService & WebHookService =>
 
   import MergeService._
 
@@ -121,8 +116,8 @@ trait MergeService {
     afterCommitId: ObjectId,
     loginAccount: Account,
     settings: SystemSettings
-  )(
-    implicit s: Session,
+  )(implicit
+    s: Session,
     c: JsonFormat.Context
   ): Unit = {
     callWebHookOf(repository.owner, repository.name, WebHook.Push, settings) {
@@ -220,7 +215,14 @@ trait MergeService {
     requestRepositoryName: String,
     requestBranch: String
   ): Option[String] =
-    tryMergeRemote(userName, repositoryName, branch, requestUserName, requestRepositoryName, requestBranch).left.toOption
+    tryMergeRemote(
+      userName,
+      repositoryName,
+      branch,
+      requestUserName,
+      requestRepositoryName,
+      requestBranch
+    ).left.toOption
 
   def pullRemote(
     localRepository: RepositoryInfo,
@@ -236,84 +238,90 @@ trait MergeService {
     val localRepositoryName = localRepository.name
     val remoteUserName = remoteRepository.owner
     val remoteRepositoryName = remoteRepository.name
-    tryMergeRemote(localUserName, localRepositoryName, localBranch, remoteUserName, remoteRepositoryName, remoteBranch).map {
-      case (newTreeId, oldBaseId, oldHeadId) =>
-        Using.resource(Git.open(getRepositoryDir(localUserName, localRepositoryName))) { git =>
-          val existIds = JGitUtil.getAllCommitIds(git).toSet
+    tryMergeRemote(
+      localUserName,
+      localRepositoryName,
+      localBranch,
+      remoteUserName,
+      remoteRepositoryName,
+      remoteBranch
+    ).map { case (newTreeId, oldBaseId, oldHeadId) =>
+      Using.resource(Git.open(getRepositoryDir(localUserName, localRepositoryName))) { git =>
+        val existIds = JGitUtil.getAllCommitIds(git).toSet
 
-          val committer = new PersonIdent(loginAccount.fullName, loginAccount.mailAddress)
-          val newCommit =
-            Util.createMergeCommit(git.getRepository, newTreeId, committer, message, Seq(oldBaseId, oldHeadId))
-          Util.updateRefs(git.getRepository, s"refs/heads/${localBranch}", newCommit, false, committer, Some("merge"))
+        val committer = new PersonIdent(loginAccount.fullName, loginAccount.mailAddress)
+        val newCommit =
+          Util.createMergeCommit(git.getRepository, newTreeId, committer, message, Seq(oldBaseId, oldHeadId))
+        Util.updateRefs(git.getRepository, s"refs/heads/${localBranch}", newCommit, false, committer, Some("merge"))
 
-          val commits = git.log
-            .addRange(oldBaseId, newCommit)
-            .call
-            .iterator
-            .asScala
-            .map(c => new JGitUtil.CommitInfo(c))
-            .toList
+        val commits = git.log
+          .addRange(oldBaseId, newCommit)
+          .call
+          .iterator
+          .asScala
+          .map(c => new JGitUtil.CommitInfo(c))
+          .toList
 
+        commits.foreach { commit =>
+          if (!existIds.contains(commit.id)) {
+            createIssueComment(localUserName, localRepositoryName, commit)
+          }
+        }
+
+        // record activity
+        val pushInfo = PushInfo(
+          localUserName,
+          localRepositoryName,
+          loginAccount.userName,
+          localBranch,
+          commits
+        )
+        recordActivity(pushInfo)
+
+        // close issue by commit message
+        if (localBranch == localRepository.repository.defaultBranch) {
           commits.foreach { commit =>
-            if (!existIds.contains(commit.id)) {
-              createIssueComment(localUserName, localRepositoryName, commit)
-            }
-          }
-
-          // record activity
-          val pushInfo = PushInfo(
-            localUserName,
-            localRepositoryName,
-            loginAccount.userName,
-            localBranch,
-            commits
-          )
-          recordActivity(pushInfo)
-
-          // close issue by commit message
-          if (localBranch == localRepository.repository.defaultBranch) {
-            commits.foreach { commit =>
-              closeIssuesFromMessage(commit.fullMessage, loginAccount.userName, localUserName, localRepositoryName)
-                .foreach { issueId =>
-                  getIssue(localRepository.owner, localRepository.name, issueId.toString).foreach { issue =>
-                    callIssuesWebHook("closed", localRepository, issue, loginAccount, settings)
-                    val closeIssueInfo = CloseIssueInfo(
-                      localRepository.owner,
-                      localRepository.name,
-                      localUserName,
-                      issue.issueId,
-                      issue.title
+            closeIssuesFromMessage(commit.fullMessage, loginAccount.userName, localUserName, localRepositoryName)
+              .foreach { issueId =>
+                getIssue(localRepository.owner, localRepository.name, issueId.toString).foreach { issue =>
+                  callIssuesWebHook("closed", localRepository, issue, loginAccount, settings)
+                  val closeIssueInfo = CloseIssueInfo(
+                    localRepository.owner,
+                    localRepository.name,
+                    localUserName,
+                    issue.issueId,
+                    issue.title
+                  )
+                  recordActivity(closeIssueInfo)
+                  PluginRegistry().getIssueHooks
+                    .foreach(
+                      _.closedByCommitComment(issue, localRepository, commit.fullMessage, loginAccount)
                     )
-                    recordActivity(closeIssueInfo)
-                    PluginRegistry().getIssueHooks
-                      .foreach(
-                        _.closedByCommitComment(issue, localRepository, commit.fullMessage, loginAccount)
-                      )
-                  }
                 }
-            }
-          }
-
-          pullRequest.foreach { pullRequest =>
-            callWebHookOf(localRepository.owner, localRepository.name, WebHook.Push, settings) {
-              for {
-                ownerAccount <- getAccountByUserName(localRepository.owner)
-              } yield {
-                WebHookService.WebHookPushPayload(
-                  git,
-                  loginAccount,
-                  pullRequest.requestBranch,
-                  localRepository,
-                  commits,
-                  ownerAccount,
-                  oldId = oldBaseId,
-                  newId = newCommit
-                )
               }
+          }
+        }
+
+        pullRequest.foreach { pullRequest =>
+          callWebHookOf(localRepository.owner, localRepository.name, WebHook.Push, settings) {
+            for {
+              ownerAccount <- getAccountByUserName(localRepository.owner)
+            } yield {
+              WebHookService.WebHookPushPayload(
+                git,
+                loginAccount,
+                pullRequest.requestBranch,
+                localRepository,
+                commits,
+                ownerAccount,
+                oldId = oldBaseId,
+                newId = newCommit
+              )
             }
           }
         }
-        oldBaseId
+      }
+      oldBaseId
     }.toOption
   }
 
@@ -343,7 +351,8 @@ trait MergeService {
                     pullRequest.commitIdFrom,
                     pullRequest.requestUserName,
                     pullRequest.requestRepositoryName,
-                    pullRequest.commitIdTo
+                    pullRequest.commitIdTo,
+                    settings
                   )
 
                   // merge git repository
@@ -371,7 +380,7 @@ trait MergeService {
                           "merge"
                         )
                       createComment(repository.owner, repository.name, loginAccount.userName, issueId, "Close", "close")
-                      updateClosed(repository.owner, repository.name, issueId, true)
+                      updateClosed(repository.owner, repository.name, issueId, closed = true)
 
                       // record activity
                       val mergeInfo =
@@ -549,7 +558,7 @@ object MergeService {
     ): ObjectId = {
       val mergeCommit = new CommitBuilder()
       mergeCommit.setTreeId(treeId)
-      mergeCommit.setParentIds(parents: _*)
+      mergeCommit.setParentIds(parents*)
       mergeCommit.setAuthor(committer)
       mergeCommit.setCommitter(committer)
       mergeCommit.setMessage(message)
@@ -621,11 +630,12 @@ object MergeService {
 
     def checkConflictForce(): Option[String] = {
       val merger = MergeStrategy.RECURSIVE.newMerger(git.getRepository, true)
-      val conflicted = try {
-        !merger.merge(mergeBaseTip, mergeTip)
-      } catch {
-        case e: NoMergeBaseException => true
-      }
+      val conflicted =
+        try {
+          !merger.merge(mergeBaseTip, mergeTip)
+        } catch {
+          case e: NoMergeBaseException => true
+        }
       val mergeTipCommit = Using.resource(new RevWalk(git.getRepository))(_.parseCommit(mergeTip))
       val committer = mergeTipCommit.getCommitterIdent
 

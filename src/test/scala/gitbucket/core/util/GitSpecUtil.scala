@@ -101,11 +101,12 @@ object GitSpecUtil {
     val merger = MergeStrategy.RECURSIVE.newMerger(repository, true)
     val mergeBaseTip = repository.resolve(into)
     val mergeTip = repository.resolve(branch)
-    val conflicted = try {
-      !merger.merge(mergeBaseTip, mergeTip)
-    } catch {
-      case e: NoMergeBaseException => true
-    }
+    val conflicted =
+      try {
+        !merger.merge(mergeBaseTip, mergeTip)
+      } catch {
+        case e: NoMergeBaseException => true
+      }
     if (conflicted) {
       throw new RuntimeException("conflict!")
     }
@@ -114,7 +115,7 @@ object GitSpecUtil {
     // creates merge commit
     val mergeCommit = new CommitBuilder()
     mergeCommit.setTreeId(merger.getResultTreeId)
-    mergeCommit.setParentIds(Array[ObjectId](mergeBaseTip, mergeTip): _*)
+    mergeCommit.setParentIds(Array[ObjectId](mergeBaseTip, mergeTip)*)
     mergeCommit.setAuthor(committer)
     mergeCommit.setCommitter(committer)
     mergeCommit.setMessage(message)

@@ -7,7 +7,7 @@ import gitbucket.core.util.Implicits._
 import gitbucket.core.util.{JGitUtil, ReferrerAuthenticator, WritableUsersAuthenticator}
 
 trait ApiRepositoryStatusControllerBase extends ControllerBase {
-  self: AccountService with CommitStatusService with ReferrerAuthenticator with WritableUsersAuthenticator =>
+  self: AccountService & CommitStatusService & ReferrerAuthenticator & WritableUsersAuthenticator =>
 
   /*
    * i. Create a status
@@ -47,9 +47,8 @@ trait ApiRepositoryStatusControllerBase extends ControllerBase {
       ref <- params.get("ref")
       sha <- JGitUtil.getShaByRef(repository.owner, repository.name, ref)
     } yield {
-      JsonFormat(getCommitStatusesWithCreator(repository.owner, repository.name, sha).map {
-        case (status, creator) =>
-          ApiCommitStatus(status, ApiUser(creator))
+      JsonFormat(getCommitStatusesWithCreator(repository.owner, repository.name, sha).map { case (status, creator) =>
+        ApiCommitStatus(status, ApiUser(creator))
       })
     }) getOrElse NotFound()
   })

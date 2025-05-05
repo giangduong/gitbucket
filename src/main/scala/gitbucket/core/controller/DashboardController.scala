@@ -2,11 +2,11 @@ package gitbucket.core.controller
 
 import gitbucket.core.dashboard.html
 import gitbucket.core.model.Account
-import gitbucket.core.service._
-import gitbucket.core.util.{Keys, UsersAuthenticator}
-import gitbucket.core.util.Implicits._
-import gitbucket.core.service.IssuesService._
-import gitbucket.core.service.ActivityService._
+import gitbucket.core.service.*
+import gitbucket.core.util.UsersAuthenticator
+import gitbucket.core.util.Implicits.*
+import gitbucket.core.service.IssuesService.*
+import gitbucket.core.service.ActivityService.*
 
 class DashboardController
     extends DashboardControllerBase
@@ -28,12 +28,8 @@ class DashboardController
     with RequestCache
 
 trait DashboardControllerBase extends ControllerBase {
-  self: IssuesService
-    with PullRequestService
-    with RepositoryService
-    with AccountService
-    with CommitStatusService
-    with UsersAuthenticator =>
+  self: IssuesService & PullRequestService & RepositoryService & AccountService & CommitStatusService &
+    UsersAuthenticator =>
 
   get("/dashboard/repos")(usersOnly {
     context.withLoginAccount { loginAccount =>
@@ -43,7 +39,7 @@ trait DashboardControllerBase extends ControllerBase {
         withoutPhysicalInfo = true,
         limit = context.settings.basicBehavior.limitVisibleRepositories
       )
-      html.repos(getGroupNames(loginAccount.userName), repos, repos, isNewsFeedEnabled())
+      html.repos(getGroupNames(loginAccount.userName), repos, repos, isNewsFeedEnabled)
     }
   })
 
@@ -95,7 +91,7 @@ trait DashboardControllerBase extends ControllerBase {
     }
   })
 
-  private def getOrCreateCondition(key: String, filter: String, userName: String) = {
+  private def getOrCreateCondition(filter: String, userName: String) = {
     val condition = IssueSearchCondition(request)
 
     filter match {
@@ -106,19 +102,19 @@ trait DashboardControllerBase extends ControllerBase {
   }
 
   private def searchIssues(loginAccount: Account, filter: String) = {
-    import IssuesService._
+    import IssuesService.*
 
     val userName = loginAccount.userName
-    val condition = getOrCreateCondition(Keys.Session.DashboardIssues, filter, userName)
-    val userRepos = getUserRepositories(userName, true).map(repo => repo.owner -> repo.name)
+    val condition = getOrCreateCondition(filter, userName)
+    val userRepos = getUserRepositories(userName, withoutPhysicalInfo = true).map(repo => repo.owner -> repo.name)
     val page = IssueSearchCondition.page(request)
-    val issues = searchIssue(condition, IssueSearchOption.Issues, (page - 1) * IssueLimit, IssueLimit, userRepos: _*)
+    val issues = searchIssue(condition, IssueSearchOption.Issues, (page - 1) * IssueLimit, IssueLimit, userRepos*)
 
     html.issues(
       issues.map(issue => (issue, None)),
       page,
-      countIssue(condition.copy(state = "open"), IssueSearchOption.Issues, userRepos: _*),
-      countIssue(condition.copy(state = "closed"), IssueSearchOption.Issues, userRepos: _*),
+      countIssue(condition.copy(state = "open"), IssueSearchOption.Issues, userRepos*),
+      countIssue(condition.copy(state = "closed"), IssueSearchOption.Issues, userRepos*),
       filter match {
         case "assigned"  => condition.copy(assigned = Some(Some(userName)))
         case "mentioned" => condition.copy(mentioned = Some(userName))
@@ -132,16 +128,16 @@ trait DashboardControllerBase extends ControllerBase {
         withoutPhysicalInfo = true,
         limit = context.settings.basicBehavior.limitVisibleRepositories
       ),
-      isNewsFeedEnabled()
+      isNewsFeedEnabled
     )
   }
 
   private def searchPullRequests(loginAccount: Account, filter: String) = {
-    import IssuesService._
-    import PullRequestService._
+    import IssuesService.*
+    import PullRequestService.*
 
     val userName = loginAccount.userName
-    val condition = getOrCreateCondition(Keys.Session.DashboardPulls, filter, userName)
+    val condition = getOrCreateCondition(filter, userName)
     val allRepos = getAllRepositories(userName)
     val page = IssueSearchCondition.page(request)
     val issues = searchIssue(
@@ -149,7 +145,7 @@ trait DashboardControllerBase extends ControllerBase {
       IssueSearchOption.PullRequests,
       (page - 1) * PullRequestLimit,
       PullRequestLimit,
-      allRepos: _*
+      allRepos*
     )
     val status = issues.map { issue =>
       issue.commitId.flatMap { commitId =>
@@ -160,8 +156,8 @@ trait DashboardControllerBase extends ControllerBase {
     html.pulls(
       issues.zip(status),
       page,
-      countIssue(condition.copy(state = "open"), IssueSearchOption.PullRequests, allRepos: _*),
-      countIssue(condition.copy(state = "closed"), IssueSearchOption.PullRequests, allRepos: _*),
+      countIssue(condition.copy(state = "open"), IssueSearchOption.PullRequests, allRepos*),
+      countIssue(condition.copy(state = "closed"), IssueSearchOption.PullRequests, allRepos*),
       filter match {
         case "assigned"  => condition.copy(assigned = Some(Some(userName)))
         case "mentioned" => condition.copy(mentioned = Some(userName))
@@ -175,7 +171,7 @@ trait DashboardControllerBase extends ControllerBase {
         withoutPhysicalInfo = true,
         limit = context.settings.basicBehavior.limitVisibleRepositories
       ),
-      isNewsFeedEnabled()
+      isNewsFeedEnabled
     )
   }
 

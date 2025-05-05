@@ -92,7 +92,7 @@ abstract class GitCommand extends Command with ServerSessionAware {
 }
 
 abstract class DefaultGitCommand(val owner: String, val repoName: String) extends GitCommand {
-  self: RepositoryService with AccountService with DeployKeyService =>
+  self: RepositoryService & AccountService & DeployKeyService =>
 
   protected def userName(authType: AuthType): String = {
     authType match {
@@ -101,8 +101,8 @@ abstract class DefaultGitCommand(val owner: String, val repoName: String) extend
     }
   }
 
-  protected def isReadableUser(authType: AuthType, repositoryInfo: RepositoryService.RepositoryInfo)(
-    implicit session: Session
+  protected def isReadableUser(authType: AuthType, repositoryInfo: RepositoryService.RepositoryInfo)(implicit
+    session: Session
   ): Boolean = {
     authType match {
       case AuthType.UserAuthType(username) => {
@@ -120,8 +120,8 @@ abstract class DefaultGitCommand(val owner: String, val repoName: String) extend
     }
   }
 
-  protected def isWritableUser(authType: AuthType, repositoryInfo: RepositoryService.RepositoryInfo)(
-    implicit session: Session
+  protected def isWritableUser(authType: AuthType, repositoryInfo: RepositoryService.RepositoryInfo)(implicit
+    session: Session
   ): Boolean = {
     authType match {
       case AuthType.UserAuthType(username) => {
@@ -183,7 +183,7 @@ class DefaultGitReceivePack(owner: String, repoName: String, baseUrl: String, ss
         val receive = new ReceivePack(repository)
         if (!repoName.endsWith(".wiki")) {
           val hook =
-            new CommitLogHook(owner, repoName, userName(authType), baseUrl, Some(sshAddress.getUrl(owner, repoName)))
+            new CommitLogHook(owner, repoName, userName(authType), baseUrl, Some(sshAddress.getUrl))
           receive.setPreReceiveHook(hook)
           receive.setPostReceiveHook(hook)
         }

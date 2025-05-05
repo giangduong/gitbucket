@@ -1,6 +1,6 @@
 Debug GitBucket on IntelliJ
 ========
-Add following configuration for allowing remote debugging to `buils.sbt`:
+Add following configuration for allowing remote debugging to `build.sbt`:
 
 ```scala
 javaOptions in Jetty ++= Seq(
@@ -12,7 +12,7 @@ javaOptions in Jetty ++= Seq(
 Run GitBucket:
 
 ```shell
-$ sbt ~jetty:start
+$ sbt ~container:start
 ```
 
 In IntelliJ, create remote debug configuration as follows. Make sure port number is same as above configuration.

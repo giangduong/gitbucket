@@ -4,16 +4,16 @@ import java.time.{LocalDateTime, ZoneOffset}
 import java.util.Date
 import gitbucket.core.settings.html
 import gitbucket.core.model.{RepositoryWebHook, WebHook}
-import gitbucket.core.service._
-import gitbucket.core.service.WebHookService._
-import gitbucket.core.util._
-import gitbucket.core.util.JGitUtil._
-import gitbucket.core.util.SyntaxSugars._
-import gitbucket.core.util.Implicits._
-import gitbucket.core.util.Directory._
+import gitbucket.core.service.*
+import gitbucket.core.service.WebHookService.*
+import gitbucket.core.util.*
+import gitbucket.core.util.JGitUtil.*
+import gitbucket.core.util.SyntaxSugars.*
+import gitbucket.core.util.Implicits.*
+import gitbucket.core.util.Directory.*
 import gitbucket.core.model.WebHookContentType
 import gitbucket.core.model.activity.RenameRepositoryInfo
-import org.scalatra.forms._
+import org.scalatra.forms.*
 import org.scalatra.i18n.Messages
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.lib.Constants
@@ -37,19 +37,11 @@ class RepositorySettingsController
     with RequestCache
 
 trait RepositorySettingsControllerBase extends ControllerBase {
-  self: RepositoryService
-    with AccountService
-    with WebHookService
-    with ProtectedBranchService
-    with CommitStatusService
-    with DeployKeyService
-    with CustomFieldsService
-    with ActivityService
-    with OwnerAuthenticator
-    with UsersAuthenticator =>
+  self: RepositoryService & AccountService & WebHookService & ProtectedBranchService & CommitStatusService &
+    DeployKeyService & CustomFieldsService & ActivityService & OwnerAuthenticator & UsersAuthenticator =>
 
   // for repository options
-  case class OptionsForm(
+  private case class OptionsForm(
     description: Option[String],
     isPrivate: Boolean,
     issuesOption: String,
@@ -62,7 +54,7 @@ trait RepositorySettingsControllerBase extends ControllerBase {
     safeMode: Boolean
   )
 
-  val optionsForm = mapping(
+  private val optionsForm = mapping(
     "description" -> trim(label("Description", optional(text()))),
     "isPrivate" -> trim(label("Repository Type", boolean())),
     "issuesOption" -> trim(label("Issues Option", text(required, featureOption))),
@@ -80,25 +72,30 @@ trait RepositorySettingsControllerBase extends ControllerBase {
   }
 
   // for default branch
-  case class DefaultBranchForm(defaultBranch: String)
+  private case class DefaultBranchForm(defaultBranch: String)
 
-  val defaultBranchForm = mapping(
+  private val defaultBranchForm = mapping(
     "defaultBranch" -> trim(label("Default Branch", text(required, maxlength(100))))
   )(DefaultBranchForm.apply)
 
   // for deploy key
-  case class DeployKeyForm(title: String, publicKey: String, allowWrite: Boolean)
+  private case class DeployKeyForm(title: String, publicKey: String, allowWrite: Boolean)
 
-  val deployKeyForm = mapping(
+  private val deployKeyForm = mapping(
     "title" -> trim(label("Title", text(required, maxlength(100)))),
     "publicKey" -> trim2(label("Key", text(required))), // TODO duplication check in the repository?
     "allowWrite" -> trim(label("Key", boolean()))
   )(DeployKeyForm.apply)
 
   // for web hook url addition
-  case class WebHookForm(url: String, events: Set[WebHook.Event], ctype: WebHookContentType, token: Option[String])
+  private case class WebHookForm(
+    url: String,
+    events: Set[WebHook.Event],
+    ctype: WebHookContentType,
+    token: Option[String]
+  )
 
-  def webHookForm(update: Boolean) =
+  private def webHookForm(update: Boolean) =
     mapping(
       "url" -> trim(label("url", text(required, webHook(update)))),
       "events" -> webhookEvents,
@@ -107,23 +104,23 @@ trait RepositorySettingsControllerBase extends ControllerBase {
     )((url, events, ctype, token) => WebHookForm(url, events, WebHookContentType.valueOf(ctype), token))
 
   // for rename repository
-  case class RenameRepositoryForm(repositoryName: String)
+  private case class RenameRepositoryForm(repositoryName: String)
 
-  val renameForm = mapping(
+  private val renameForm = mapping(
     "repositoryName" -> trim(
       label("New repository name", text(required, maxlength(100), repository, renameRepositoryName))
     )
   )(RenameRepositoryForm.apply)
 
   // for transfer ownership
-  case class TransferOwnerShipForm(newOwner: String)
+  private case class TransferOwnerShipForm(newOwner: String)
 
-  val transferForm = mapping(
+  private val transferForm = mapping(
     "newOwner" -> trim(label("New owner", text(required, transferUser)))
   )(TransferOwnerShipForm.apply)
 
   // for custom field
-  case class CustomFieldForm(
+  private case class CustomFieldForm(
     fieldName: String,
     fieldType: String,
     constraints: Option[String],
@@ -131,7 +128,7 @@ trait RepositorySettingsControllerBase extends ControllerBase {
     enableForPullRequests: Boolean
   )
 
-  val customFieldForm = mapping(
+  private val customFieldForm = mapping(
     "fieldName" -> trim(label("Field name", text(required, maxlength(100)))),
     "fieldType" -> trim(label("Field type", text(required))),
     "constraints" -> trim(label("Constraints", optional(text()))),
@@ -186,7 +183,7 @@ trait RepositorySettingsControllerBase extends ControllerBase {
   /** Update default branch */
   post("/:owner/:repository/settings/update_default_branch", defaultBranchForm)(ownerOnly { (form, repository) =>
     if (!repository.branchList.contains(form.defaultBranch)) {
-      redirect(s"/${repository.owner}/${repository.name}/settings/options")
+      redirect(s"/${repository.owner}/${repository.name}/settings/branches")
     } else {
       saveRepositoryDefaultBranch(repository.owner, repository.name, form.defaultBranch)
       // Change repository HEAD
@@ -200,7 +197,7 @@ trait RepositorySettingsControllerBase extends ControllerBase {
 
   /** Branch protection for branch */
   get("/:owner/:repository/settings/branches/*")(ownerOnly { repository =>
-    import gitbucket.core.api._
+    import gitbucket.core.api.*
     val branch = params("splat")
 
     if (!repository.branchList.contains(branch)) {
@@ -256,7 +253,7 @@ trait RepositorySettingsControllerBase extends ControllerBase {
       ctype = WebHookContentType.FORM,
       token = None
     )
-    html.edithook(webhook, Set(WebHook.Push), repository, true)
+    html.edithook(webhook, Set(WebHook.Push), repository, create = true)
   })
 
   /**
@@ -286,93 +283,90 @@ trait RepositorySettingsControllerBase extends ControllerBase {
         Array(h.getName, h.getValue)
       }
 
-    Using.resource(Git.open(getRepositoryDir(repository.owner, repository.name))) {
-      git =>
-        import scala.concurrent.duration._
-        import scala.concurrent._
-        import scala.jdk.CollectionConverters._
-        import scala.util.control.NonFatal
-        import org.apache.http.util.EntityUtils
-        import scala.concurrent.ExecutionContext.Implicits.global
+    Using.resource(Git.open(getRepositoryDir(repository.owner, repository.name))) { git =>
+      import scala.concurrent.duration.*
+      import scala.concurrent.*
+      import scala.jdk.CollectionConverters.*
+      import scala.util.control.NonFatal
+      import org.apache.http.util.EntityUtils
+      import scala.concurrent.ExecutionContext.Implicits.global
 
-        val url = params("url")
-        val token = Some(params("token"))
-        val ctype = WebHookContentType.valueOf(params("ctype"))
-        val dummyWebHookInfo = RepositoryWebHook(
-          userName = repository.owner,
-          repositoryName = repository.name,
-          url = url,
-          ctype = ctype,
-          token = token
+      val url = params("url")
+      val token = Some(params("token"))
+      val ctype = WebHookContentType.valueOf(params("ctype"))
+      val dummyWebHookInfo = RepositoryWebHook(
+        userName = repository.owner,
+        repositoryName = repository.name,
+        url = url,
+        ctype = ctype,
+        token = token
+      )
+      val dummyPayload = {
+        val ownerAccount = getAccountByUserName(repository.owner).get
+        val commits =
+          if (JGitUtil.isEmpty(git)) List.empty
+          else
+            git.log
+              .add(git.getRepository.resolve(repository.repository.defaultBranch))
+              .setMaxCount(4)
+              .call
+              .iterator
+              .asScala
+              .map(new CommitInfo(_))
+              .toList
+        val pushedCommit = commits.drop(1)
+
+        WebHookPushPayload(
+          git = git,
+          sender = ownerAccount,
+          refName = "refs/heads/" + repository.repository.defaultBranch,
+          repositoryInfo = repository,
+          commits = pushedCommit,
+          repositoryOwner = ownerAccount,
+          oldId = commits.lastOption.map(_.id).map(ObjectId.fromString).getOrElse(ObjectId.zeroId()),
+          newId = commits.headOption.map(_.id).map(ObjectId.fromString).getOrElse(ObjectId.zeroId())
         )
-        val dummyPayload = {
-          val ownerAccount = getAccountByUserName(repository.owner).get
-          val commits =
-            if (JGitUtil.isEmpty(git)) List.empty
-            else
-              git.log
-                .add(git.getRepository.resolve(repository.repository.defaultBranch))
-                .setMaxCount(4)
-                .call
-                .iterator
-                .asScala
-                .map(new CommitInfo(_))
-                .toList
-          val pushedCommit = commits.drop(1)
+      }
 
-          WebHookPushPayload(
-            git = git,
-            sender = ownerAccount,
-            refName = "refs/heads/" + repository.repository.defaultBranch,
-            repositoryInfo = repository,
-            commits = pushedCommit,
-            repositoryOwner = ownerAccount,
-            oldId = commits.lastOption.map(_.id).map(ObjectId.fromString).getOrElse(ObjectId.zeroId()),
-            newId = commits.headOption.map(_.id).map(ObjectId.fromString).getOrElse(ObjectId.zeroId())
-          )
-        }
+      val (webHook, json, reqFuture, resFuture) =
+        callWebHook(WebHook.Push, List(dummyWebHookInfo), dummyPayload, context.settings).head
 
-        val (webHook, json, reqFuture, resFuture) =
-          callWebHook(WebHook.Push, List(dummyWebHookInfo), dummyPayload, context.settings).head
+      val toErrorMap: PartialFunction[Throwable, Map[String, String]] = {
+        case e: java.net.UnknownHostException                  => Map("error" -> s"Unknown host ${e.getMessage}")
+        case _: java.lang.IllegalArgumentException             => Map("error" -> "invalid url")
+        case _: org.apache.http.client.ClientProtocolException => Map("error" -> "invalid url")
+        case NonFatal(e)                                       => Map("error" -> s"${e.getClass} ${e.getMessage}")
+      }
 
-        val toErrorMap: PartialFunction[Throwable, Map[String, String]] = {
-          case e: java.net.UnknownHostException                  => Map("error" -> ("Unknown host " + e.getMessage))
-          case e: java.lang.IllegalArgumentException             => Map("error" -> ("invalid url"))
-          case e: org.apache.http.client.ClientProtocolException => Map("error" -> ("invalid url"))
-          case NonFatal(e)                                       => Map("error" -> (s"${e.getClass} ${e.getMessage}"))
-        }
-
-        contentType = formats("json")
-        org.json4s.jackson.Serialization.write(
-          Map(
-            "url" -> url,
-            "request" -> Await.result(
-              reqFuture
-                .map(
-                  req =>
-                    Map(
-                      "headers" -> _headers(req.getAllHeaders),
-                      "payload" -> json
-                  )
+      contentType = formats("json")
+      org.json4s.jackson.Serialization.write(
+        Map(
+          "url" -> url,
+          "request" -> Await.result(
+            reqFuture
+              .map(req =>
+                Map(
+                  "headers" -> _headers(req.getAllHeaders),
+                  "payload" -> json
                 )
-                .recover(toErrorMap),
-              20 seconds
-            ),
-            "response" -> Await.result(
-              resFuture
-                .map(
-                  res =>
-                    Map(
-                      "status" -> res.getStatusLine.getStatusCode,
-                      "body" -> EntityUtils.toString(res.getEntity()),
-                      "headers" -> _headers(res.getAllHeaders())
-                  )
+              )
+              .recover(toErrorMap),
+            20 seconds
+          ),
+          "response" -> Await.result(
+            resFuture
+              .map(res =>
+                Map(
+                  "status" -> res.getStatusLine.getStatusCode,
+                  "body" -> EntityUtils.toString(res.getEntity),
+                  "headers" -> _headers(res.getAllHeaders)
                 )
-                .recover(toErrorMap),
-              20 seconds
-            )
+              )
+              .recover(toErrorMap),
+            20 seconds
           )
         )
+      )
     }
   })
 
@@ -380,9 +374,8 @@ trait RepositorySettingsControllerBase extends ControllerBase {
    * Display the web hook edit page.
    */
   get("/:owner/:repository/settings/hooks/edit")(ownerOnly { repository =>
-    getWebHook(repository.owner, repository.name, params("url")).map {
-      case (webhook, events) =>
-        html.edithook(webhook, events, repository, false)
+    getWebHook(repository.owner, repository.name, params("url")).map { case (webhook, events) =>
+      html.edithook(webhook, events, repository, create = false)
     } getOrElse NotFound()
   })
 
@@ -406,23 +399,22 @@ trait RepositorySettingsControllerBase extends ControllerBase {
    * Rename repository.
    */
   post("/:owner/:repository/settings/rename", renameForm)(ownerOnly { (form, repository) =>
-    context.withLoginAccount {
-      loginAccount =>
-        if (context.settings.basicBehavior.repositoryOperation.rename || loginAccount.isAdmin) {
-          if (repository.name != form.repositoryName) {
-            // Update database and move git repository
-            renameRepository(repository.owner, repository.name, repository.owner, form.repositoryName)
-            // Record activity log
-            val renameInfo = RenameRepositoryInfo(
-              repository.owner,
-              form.repositoryName,
-              loginAccount.userName,
-              repository.name
-            )
-            recordActivity(renameInfo)
-          }
-          redirect(s"/${repository.owner}/${form.repositoryName}")
-        } else Forbidden()
+    context.withLoginAccount { loginAccount =>
+      if (context.settings.basicBehavior.repositoryOperation.rename || loginAccount.isAdmin) {
+        if (repository.name != form.repositoryName) {
+          // Update database and move git repository
+          renameRepository(repository.owner, repository.name, repository.owner, form.repositoryName)
+          // Record activity log
+          val renameInfo = RenameRepositoryInfo(
+            repository.owner,
+            form.repositoryName,
+            loginAccount.userName,
+            repository.name
+          )
+          recordActivity(renameInfo)
+        }
+        redirect(s"/${repository.owner}/${form.repositoryName}")
+      } else Forbidden()
     }
   })
 
@@ -430,24 +422,23 @@ trait RepositorySettingsControllerBase extends ControllerBase {
    * Transfer repository ownership.
    */
   post("/:owner/:repository/settings/transfer", transferForm)(ownerOnly { (form, repository) =>
-    context.withLoginAccount {
-      loginAccount =>
-        if (context.settings.basicBehavior.repositoryOperation.transfer || loginAccount.isAdmin) {
-          // Change repository owner
-          if (repository.owner != form.newOwner) {
-            // Update database and move git repository
-            renameRepository(repository.owner, repository.name, form.newOwner, repository.name)
-            // Record activity log
-            val renameInfo = RenameRepositoryInfo(
-              form.newOwner,
-              repository.name,
-              loginAccount.userName,
-              repository.owner
-            )
-            recordActivity(renameInfo)
-          }
-          redirect(s"/${form.newOwner}/${repository.name}")
-        } else Forbidden()
+    context.withLoginAccount { loginAccount =>
+      if (context.settings.basicBehavior.repositoryOperation.transfer || loginAccount.isAdmin) {
+        // Change repository owner
+        if (repository.owner != form.newOwner) {
+          // Update database and move git repository
+          renameRepository(repository.owner, repository.name, form.newOwner, repository.name)
+          // Record activity log
+          val renameInfo = RenameRepositoryInfo(
+            form.newOwner,
+            repository.name,
+            loginAccount.userName,
+            repository.owner
+          )
+          recordActivity(renameInfo)
+        }
+        redirect(s"/${form.newOwner}/${repository.name}")
+      } else Forbidden()
     }
   })
 

@@ -16,12 +16,8 @@ import gitbucket.core.service.RepositoryService.RepositoryInfo
 import gitbucket.core.util.Implicits._
 
 trait HandleCommentService {
-  self: RepositoryService
-    with IssuesService
-    with ActivityService
-    with WebHookService
-    with WebHookIssueCommentService
-    with WebHookPullRequestService =>
+  self: RepositoryService & IssuesService & ActivityService & WebHookService & WebHookIssueCommentService &
+    WebHookPullRequestService =>
 
   /**
    * @see [[https://github.com/gitbucket/gitbucket/wiki/CommentAction]]
@@ -134,8 +130,8 @@ trait HandleCommentService {
     }
   }
 
-  def deleteCommentByApi(repoInfo: RepositoryInfo, comment: IssueComment, issue: Issue)(
-    implicit context: Context,
+  def deleteCommentByApi(repoInfo: RepositoryInfo, comment: IssueComment, issue: Issue)(implicit
+    context: Context,
     s: Session
   ): Option[IssueComment] = context.loginAccount.flatMap { _ =>
     comment.action match {

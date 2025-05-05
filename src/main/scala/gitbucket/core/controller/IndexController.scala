@@ -7,14 +7,14 @@ import com.nimbusds.oauth2.sdk.id.State
 import com.nimbusds.openid.connect.sdk.Nonce
 import gitbucket.core.helper.xml
 import gitbucket.core.model.Account
-import gitbucket.core.service._
-import gitbucket.core.util.Implicits._
-import gitbucket.core.util._
-import gitbucket.core.view.helpers._
+import gitbucket.core.service.*
+import gitbucket.core.util.Implicits.*
+import gitbucket.core.util.*
+import gitbucket.core.view.helpers.*
 import org.scalatra.Ok
-import org.scalatra.forms._
+import org.scalatra.forms.*
 
-import gitbucket.core.service.ActivityService._
+import gitbucket.core.service.ActivityService.*
 
 class IndexController
     extends IndexControllerBase
@@ -34,19 +34,12 @@ class IndexController
     with RequestCache
 
 trait IndexControllerBase extends ControllerBase {
-  self: RepositoryService
-    with ActivityService
-    with AccountService
-    with RepositorySearchService
-    with UsersAuthenticator
-    with ReferrerAuthenticator
-    with AccessTokenService
-    with AccountFederationService
-    with OpenIDConnectService =>
+  self: RepositoryService & ActivityService & AccountService & RepositorySearchService & UsersAuthenticator &
+    ReferrerAuthenticator & AccessTokenService & AccountFederationService & OpenIDConnectService =>
 
-  case class SignInForm(userName: String, password: String, hash: Option[String])
+  private case class SignInForm(userName: String, password: String, hash: Option[String])
 
-  val signinForm = mapping(
+  private val signinForm = mapping(
     "userName" -> trim(label("Username", text(required))),
     "password" -> trim(label("Password", text(required))),
     "hash" -> trim(optional(text()))
@@ -60,28 +53,32 @@ trait IndexControllerBase extends ControllerBase {
 //
 //  case class SearchForm(query: String, owner: String, repository: String)
 
-  case class OidcAuthContext(state: State, nonce: Nonce, redirectBackURI: String)
-  case class OidcSessionContext(token: JWT)
+  private case class OidcAuthContext(state: State, nonce: Nonce, redirectBackURI: String)
+  private case class OidcSessionContext(token: JWT)
 
   get("/") {
     context.loginAccount
       .map { account =>
-        val visibleOwnerSet: Set[String] = Set(account.userName) ++ getGroupsByUserName(account.userName)
-        if (!isNewsFeedEnabled()) {
+        // val visibleOwnerSet: Set[String] = Set(account.userName) ++ getGroupsByUserName(account.userName)
+        if (!isNewsFeedEnabled) {
           redirect("/dashboard/repos")
         } else {
+          val repos = getVisibleRepositories(
+            Some(account),
+            None,
+            withoutPhysicalInfo = true,
+            limit = false
+          )
+
           gitbucket.core.html.index(
-            activities = getRecentActivitiesByOwners(visibleOwnerSet),
-            recentRepositories = getVisibleRepositories(
-              Some(account),
-              None,
-              withoutPhysicalInfo = true,
-              limit = context.settings.basicBehavior.limitVisibleRepositories
-            ),
+            activities = getRecentActivitiesByRepos(repos.map(x => (x.owner, x.name)).toSet),
+            recentRepositories = if (context.settings.basicBehavior.limitVisibleRepositories) {
+              repos.filter(x => x.owner == account.userName)
+            } else repos,
             showBannerToCreatePersonalAccessToken = hasAccountFederation(account.userName) && !hasAccessToken(
               account.userName
             ),
-            enableNewsFeed = isNewsFeedEnabled()
+            enableNewsFeed = isNewsFeedEnabled
           )
         }
       }
@@ -90,7 +87,7 @@ trait IndexControllerBase extends ControllerBase {
           activities = getRecentPublicActivities(),
           recentRepositories = getVisibleRepositories(None, withoutPhysicalInfo = true),
           showBannerToCreatePersonalAccessToken = false,
-          enableNewsFeed = isNewsFeedEnabled()
+          enableNewsFeed = isNewsFeedEnabled
         )
       }
   }
@@ -147,10 +144,9 @@ trait IndexControllerBase extends ControllerBase {
       val redirectURI = new URI(s"$baseUrl/signin/oidc")
       session.get(Keys.Session.OidcAuthContext) match {
         case Some(context: OidcAuthContext) =>
-          authenticate(params.toMap, redirectURI, context.state, context.nonce, oidc).map {
-            case (jwt, account) =>
-              session.setAttribute(Keys.Session.OidcSessionContext, OidcSessionContext(jwt))
-              signin(account, context.redirectBackURI)
+          authenticate(params.toMap, redirectURI, context.state, context.nonce, oidc).map { case (jwt, account) =>
+            session.setAttribute(Keys.Session.OidcSessionContext, OidcSessionContext(jwt))
+            signin(account, context.redirectBackURI)
           } orElse {
             flash.update("error", "Sorry, authentication failed. Please try again.")
             session.invalidate()
@@ -167,16 +163,15 @@ trait IndexControllerBase extends ControllerBase {
   }
 
   get("/signout") {
-    context.settings.oidc.map { oidc =>
-      session.get(Keys.Session.OidcSessionContext).foreach {
-        case context: OidcSessionContext =>
-          val redirectURI = new URI(baseUrl)
-          val authenticationRequest = createOIDLogoutRequest(oidc.issuer, oidc.clientID, redirectURI, context.token)
-          session.invalidate
-          redirect(authenticationRequest.toURI.toString)
+    context.settings.oidc.foreach { oidc =>
+      session.get(Keys.Session.OidcSessionContext).foreach { case context: OidcSessionContext =>
+        val redirectURI = new URI(baseUrl)
+        val authenticationRequest = createOIDLogoutRequest(oidc.issuer, oidc.clientID, redirectURI, context.token)
+        session.invalidate()
+        redirect(authenticationRequest.toURI.toString)
       }
     }
-    session.invalidate
+    session.invalidate()
     if (isDevFeatureEnabled(DevFeatures.KeepSession)) {
       deleteLoginAccountFromLocalFile()
     }
@@ -195,6 +190,16 @@ trait IndexControllerBase extends ControllerBase {
       session.setAttribute("sidebar-collapse", null)
     }
     Ok()
+  }
+
+  get("/user.css") {
+    context.settings.userDefinedCss match {
+      case Some(css) =>
+        contentType = "text/css"
+        css
+      case None =>
+        NotFound()
+    }
   }
 
   /**
@@ -227,8 +232,8 @@ trait IndexControllerBase extends ControllerBase {
     val group = params("group").toBoolean
     org.json4s.jackson.Serialization.write(
       Map(
-        "options" -> (
-          getAllUsers(false)
+        "options" ->
+          getAllUsers(includeRemoved = false)
             .withFilter { t =>
               (user, group) match {
                 case (true, true)   => true
@@ -240,13 +245,12 @@ trait IndexControllerBase extends ControllerBase {
             .map { t =>
               Map(
                 "label" -> s"${avatar(t.userName, 16)}<b>@${StringUtil.escapeHtml(
-                  StringUtil.cutTail(t.userName, 25, "...")
-                )}</b> ${StringUtil
-                  .escapeHtml(StringUtil.cutTail(t.fullName, 25, "..."))}",
+                    StringUtil.cutTail(t.userName, 25, "...")
+                  )}</b> ${StringUtil
+                    .escapeHtml(StringUtil.cutTail(t.fullName, 25, "..."))}",
                 "value" -> t.userName
               )
             }
-        )
       )
     )
   })
@@ -261,22 +265,23 @@ trait IndexControllerBase extends ControllerBase {
     } getOrElse ""
   })
 
-  // TODO Move to RepositoryViewrController?
+  // TODO Move to RepositoryViewerController?
   get("/:owner/:repository/search")(referrersOnly { repository =>
     val query = params.getOrElse("q", "").trim
     val target = params.getOrElse("type", "code")
-    val page = try {
-      val i = params.getOrElse("page", "1").toInt
-      if (i <= 0) 1 else i
-    } catch {
-      case _: NumberFormatException => 1
-    }
+    val page =
+      try {
+        val i = params.getOrElse("page", "1").toInt
+        if (i <= 0) 1 else i
+      } catch {
+        case _: NumberFormatException => 1
+      }
 
     target.toLowerCase match {
       case "issues" =>
         gitbucket.core.search.html.issues(
-          if (query.nonEmpty) searchIssues(repository.owner, repository.name, query, false) else Nil,
-          false,
+          if (query.nonEmpty) searchIssues(repository.owner, repository.name, query, pullRequest = false) else Nil,
+          pullRequest = false,
           query,
           page,
           repository
@@ -284,8 +289,8 @@ trait IndexControllerBase extends ControllerBase {
 
       case "pulls" =>
         gitbucket.core.search.html.issues(
-          if (query.nonEmpty) searchIssues(repository.owner, repository.name, query, true) else Nil,
-          true,
+          if (query.nonEmpty) searchIssues(repository.owner, repository.name, query, pullRequest = true) else Nil,
+          pullRequest = true,
           query,
           page,
           repository
@@ -320,15 +325,15 @@ trait IndexControllerBase extends ControllerBase {
       )
 
     val repositories = {
-      context.settings.basicBehavior.limitVisibleRepositories match {
-        case true =>
-          getVisibleRepositories(
-            context.loginAccount,
-            None,
-            withoutPhysicalInfo = true,
-            limit = false
-          )
-        case false => visibleRepositories
+      if (context.settings.basicBehavior.limitVisibleRepositories) {
+        getVisibleRepositories(
+          context.loginAccount,
+          None,
+          withoutPhysicalInfo = true,
+          limit = false
+        )
+      } else {
+        visibleRepositories
       }
     }.filter { repository =>
       repository.name.toLowerCase.indexOf(query) >= 0 || repository.owner.toLowerCase.indexOf(query) >= 0

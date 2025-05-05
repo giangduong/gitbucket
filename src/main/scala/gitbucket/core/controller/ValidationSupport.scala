@@ -1,16 +1,16 @@
 package gitbucket.core.controller
 
 import org.json4s.{JField, JObject, JString}
-import org.scalatra._
-import org.scalatra.json._
-import org.scalatra.forms._
+import org.scalatra.*
+import org.scalatra.json.*
+import org.scalatra.forms.*
 import org.scalatra.i18n.I18nSupport
 import org.scalatra.servlet.ServletBase
 
 /**
  * Extends scalatra-forms to support the client-side validation and Ajax requests as well.
  */
-trait ValidationSupport extends FormSupport { self: ServletBase with JacksonJsonSupport with I18nSupport =>
+trait ValidationSupport extends FormSupport { self: ServletBase & JacksonJsonSupport & I18nSupport =>
 
   def get[T](path: String, form: ValueType[T])(action: T => Any): Route = {
     registerValidate(path, form)
@@ -84,9 +84,8 @@ trait ValidationSupport extends FormSupport { self: ServletBase with JacksonJson
    * Converts errors to JSON.
    */
   private def toJson(errors: Seq[(String, String)]): JObject =
-    JObject(errors.map {
-      case (key, value) =>
-        JField(key, JString(value))
+    JObject(errors.map { case (key, value) =>
+      JField(key, JString(value))
     }.toList)
 
 }

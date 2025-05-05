@@ -1,21 +1,22 @@
 package gitbucket.core.util
 
-import GitSpecUtil._
+import gitbucket.core.util.GitSpecUtil.*
+import gitbucket.core.util.JGitUtil.BranchInfoSimple
 import org.apache.commons.io.IOUtils
 import org.eclipse.jgit.diff.DiffEntry.ChangeType
 import org.eclipse.jgit.lib.Constants
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 class JGitUtilSpec extends AnyFunSuite {
 
   test("isEmpty") {
     withTestRepository { git =>
-      assert(JGitUtil.isEmpty(git) == true)
+      assert(JGitUtil.isEmpty(git))
 
       createFile(git, Constants.HEAD, "README.md", "body1", message = "commit1")
-      assert(JGitUtil.isEmpty(git) == false)
+      assert(!JGitUtil.isEmpty(git))
     }
   }
 
@@ -30,13 +31,13 @@ class JGitUtilSpec extends AnyFunSuite {
       createFile(git, Constants.HEAD, "README.md", "body1\nbody2", message = "commit1")
 
       // latest commit
-      val diff1 = JGitUtil.getDiffs(git, None, "main", false, true)
+      val diff1 = JGitUtil.getDiffs(git, None, "main", fetchContent = false, makePatch = true)
       assert(diff1.size == 1)
       assert(diff1(0).changeType == ChangeType.MODIFY)
       assert(diff1(0).oldPath == "README.md")
       assert(diff1(0).newPath == "README.md")
-      assert(diff1(0).tooLarge == false)
-      assert(diff1(0).patch == Some("""@@ -1 +1,2 @@
+      assert(!diff1(0).tooLarge)
+      assert(diff1(0).patch.contains("""@@ -1 +1,2 @@
           |-body1
           |\ No newline at end of file
           |+body1
@@ -44,13 +45,13 @@ class JGitUtilSpec extends AnyFunSuite {
           |\ No newline at end of file""".stripMargin))
 
       // from specified commit
-      val diff2 = JGitUtil.getDiffs(git, Some(commit.getName), "main", false, true)
+      val diff2 = JGitUtil.getDiffs(git, Some(commit.getName), "main", fetchContent = false, makePatch = true)
       assert(diff2.size == 2)
       assert(diff2(0).changeType == ChangeType.ADD)
       assert(diff2(0).oldPath == "/dev/null")
       assert(diff2(0).newPath == "LICENSE")
-      assert(diff2(0).tooLarge == false)
-      assert(diff2(0).patch == Some("""+++ b/LICENSE
+      assert(!diff2(0).tooLarge)
+      assert(diff2(0).patch.contains("""+++ b/LICENSE
           |@@ -0,0 +1 @@
           |+Apache License
           |\ No newline at end of file""".stripMargin))
@@ -58,8 +59,8 @@ class JGitUtilSpec extends AnyFunSuite {
       assert(diff2(1).changeType == ChangeType.MODIFY)
       assert(diff2(1).oldPath == "README.md")
       assert(diff2(1).newPath == "README.md")
-      assert(diff2(1).tooLarge == false)
-      assert(diff2(1).patch == Some("""@@ -1 +1,2 @@
+      assert(!diff2(1).tooLarge)
+      assert(diff2(1).patch.contains("""@@ -1 +1,2 @@
           |-body1
           |\ No newline at end of file
           |+body1
@@ -118,6 +119,62 @@ class JGitUtilSpec extends AnyFunSuite {
     }
   }
 
+  test("getCommitLog") {
+    withTestRepository { git =>
+      /** repo looks like this
+       * commit1 -> commit2 -> commit3 [main]
+       * \-> commit4 [branch1]
+       * */
+      val root = git.getRepository.resolve("main")
+
+      createFile(git, Constants.HEAD, "README.md", "body1", message = "commit1")
+      val commit1 = git.getRepository.resolve("main")
+
+      createFile(git, Constants.HEAD, "LICENSE", "Apache License", message = "commit2")
+      val commit2 = git.getRepository.resolve("main")
+      // also make a tag
+      JGitUtil.createTag(git, "t1", None, commit2.getName)
+
+      createFile(git, Constants.HEAD, "README.md", "body1\nbody2", message = "commit3")
+      val commit3 = git.getRepository.resolve("main")
+
+      // create branch
+      JGitUtil.createBranch(git, "main", "branch1")
+      createFile(git, "branch1", "README.md", "body2", message = "commit4")
+      val commit4 = git.getRepository.resolve("branch1")
+
+      // compare results for empty → commit3
+      assert(
+        JGitUtil.getCommitLogs(git, commit3.getName, includesLastCommit = true)(_ => false) == JGitUtil.getCommitLog(
+          git,
+          root,
+          commit3
+        )
+      )
+      // compare results for commit1 → commit3
+      assert(
+        JGitUtil.getCommitLogs(git, commit3.getName, includesLastCommit = true)(
+          _.getName != commit3.getName
+        ) == JGitUtil.getCommitLog(git, commit1, commit3)
+      )
+
+      // compare results for empty → commit4
+      assert(
+        JGitUtil.getCommitLogs(git, commit4.getName, includesLastCommit = true)(_ => false) == JGitUtil.getCommitLog(
+          git,
+          root,
+          commit4
+        )
+      )
+
+      // check with names
+      assert(JGitUtil.getCommitLog(git, "main", "branch1").size == 1)
+
+      // tag names must work, too
+      assertResult(JGitUtil.getCommitLog(git, "t1", "main").length)(1)
+    }
+  }
+
   test("createBranch, branchesOfCommit and getBranches") {
     withTestRepository { git =>
       createFile(git, Constants.HEAD, "README.md", "body1", message = "commit1")
@@ -153,7 +210,7 @@ class JGitUtilSpec extends AnyFunSuite {
       JGitUtil.createBranch(git, "main", "test2")
 
       // getBranches
-      val branches = JGitUtil.getBranches(git, "main", true)
+      val branches = JGitUtil.getBranches(git, "main", origin = true)
       assert(branches.size == 3)
 
       assert(branches(0).name == "main")
@@ -170,6 +227,26 @@ class JGitUtilSpec extends AnyFunSuite {
 
       assert(branches(0).commitId != branches(1).commitId)
       assert(branches(0).commitId == branches(2).commitId)
+    }
+  }
+
+  test("getBranchesNoMergeInfo") {
+    withTestRepository { git =>
+      createFile(git, Constants.HEAD, "README.md", "body1", message = "commit1")
+      JGitUtil.createBranch(git, "main", "test1")
+
+      createFile(git, Constants.HEAD, "README.md", "body2", message = "commit2")
+      JGitUtil.createBranch(git, "main", "test2")
+
+      // getBranches
+      val branchesNMI = JGitUtil.getBranchesNoMergeInfo(git)
+      val branches = JGitUtil.getBranches(git, "main", origin = true)
+
+      assert(
+        branches.map(bi =>
+          BranchInfoSimple(bi.name, bi.committerName, bi.commitTime, bi.committerEmailAddress, bi.commitId)
+        ) == branchesNMI
+      )
     }
   }
 
@@ -236,14 +313,14 @@ class JGitUtilSpec extends AnyFunSuite {
       val objectId = git.getRepository.resolve("main")
       val commit = JGitUtil.getRevCommitFromId(git, objectId)
 
-      val content1 = JGitUtil.getContentFromPath(git, commit.getTree, "README.md", true)
-      assert(content1.map(x => new String(x, "UTF-8")) == Some("body1"))
+      val content1 = JGitUtil.getContentFromPath(git, commit.getTree, "README.md", fetchLargeFile = true)
+      assert(content1.map(x => new String(x, "UTF-8")).contains("body1"))
 
-      val content2 = JGitUtil.getContentFromPath(git, commit.getTree, "LARGE_FILE", false)
+      val content2 = JGitUtil.getContentFromPath(git, commit.getTree, "LARGE_FILE", fetchLargeFile = false)
       assert(content2.isEmpty)
 
-      val content3 = JGitUtil.getContentFromPath(git, commit.getTree, "LARGE_FILE", true)
-      assert(content3.map(x => new String(x, "UTF-8")) == Some("body1" * 1000000))
+      val content3 = JGitUtil.getContentFromPath(git, commit.getTree, "LARGE_FILE", fetchLargeFile = true)
+      assert(content3.map(x => new String(x, "UTF-8")).contains("body1" * 1000000))
     }
   }
 

@@ -158,11 +158,15 @@ class ApiIntegrationTest extends AnyFunSuite {
       // get tag v1.0
       {
         Using.resource(Git.open(new File(server.getDirectory(), "repositories/root/create_status_test"))) { git =>
-          git.tag().setName("v1.0").call()
+          git.tag().setName("v1.0").call().getPeeledObjectId
         }
         val ref = repo.getRef("tags/v1.0")
         assert(ref.getRef == "refs/tags/v1.0")
         assert(ref.getUrl.toString == "http://localhost:19999/api/v3/repos/root/create_status_test/git/refs/tags/v1.0")
+
+        val tags = repo.listTags().toList
+        assert(tags.size() == 1)
+        assert(tags.get(0).getName == "v1.0")
       }
     }
   }
@@ -257,7 +261,7 @@ class ApiIntegrationTest extends AnyFunSuite {
         assert(label1.getUrl == "http://localhost:19999/api/v3/repos/root/issue_label_test/labels/bug")
       }
 
-    // Replace labels (Cannot test because GHLabel.setLabels() doesn't use the replace endpoint)
+      // Replace labels (Cannot test because GHLabel.setLabels() doesn't use the replace endpoint)
 //      {
 //        issue.setLabels("enhancement", "invalid", "question")
 //

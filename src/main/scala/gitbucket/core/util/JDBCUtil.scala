@@ -19,13 +19,13 @@ object JDBCUtil {
   implicit class RichConnection(private val conn: Connection) extends AnyVal {
 
     def update(sql: String, params: Any*): Int = {
-      execute(sql, params: _*) { stmt =>
+      execute(sql, params*) { stmt =>
         stmt.executeUpdate()
       }
     }
 
     def find[T](sql: String, params: Any*)(f: ResultSet => T): Option[T] = {
-      execute(sql, params: _*) { stmt =>
+      execute(sql, params*) { stmt =>
         Using.resource(stmt.executeQuery()) { rs =>
           if (rs.next) Some(f(rs)) else None
         }
@@ -33,7 +33,7 @@ object JDBCUtil {
     }
 
     def select[T](sql: String, params: Any*)(f: ResultSet => T): Seq[T] = {
-      execute(sql, params: _*) { stmt =>
+      execute(sql, params*) { stmt =>
         Using.resource(stmt.executeQuery()) { rs =>
           val list = new ListBuffer[T]
           while (rs.next) {
@@ -45,7 +45,7 @@ object JDBCUtil {
     }
 
     def selectInt(sql: String, params: Any*): Int = {
-      execute(sql, params: _*) { stmt =>
+      execute(sql, params*) { stmt =>
         Using.resource(stmt.executeQuery()) { rs =>
           if (rs.next) rs.getInt(1) else 0
         }
@@ -54,12 +54,11 @@ object JDBCUtil {
 
     private def execute[T](sql: String, params: Any*)(f: (PreparedStatement) => T): T = {
       Using.resource(conn.prepareStatement(sql)) { stmt =>
-        params.zipWithIndex.foreach {
-          case (p, i) =>
-            p match {
-              case x: Int    => stmt.setInt(i + 1, x)
-              case x: String => stmt.setString(i + 1, x)
-            }
+        params.zipWithIndex.foreach { case (p, i) =>
+          p match {
+            case x: Int    => stmt.setInt(i + 1, x)
+            case x: String => stmt.setString(i + 1, x)
+          }
         }
         f(stmt)
       }
@@ -136,19 +135,18 @@ object JDBCUtil {
               sb.append(columns.map(_._1).mkString(", "))
               sb.append(") VALUES (")
 
-              val values = columns.map {
-                case (columnName, columnType) =>
-                  if (rs.getObject(columnName) == null) {
-                    null
-                  } else {
-                    columnType match {
-                      case Types.BOOLEAN | Types.BIT                                   => rs.getBoolean(columnName)
-                      case Types.VARCHAR | Types.CLOB | Types.CHAR | Types.LONGVARCHAR => rs.getString(columnName)
-                      case Types.INTEGER                                               => rs.getInt(columnName)
-                      case Types.BIGINT                                                => rs.getLong(columnName)
-                      case Types.TIMESTAMP                                             => rs.getTimestamp(columnName)
-                    }
+              val values = columns.map { case (columnName, columnType) =>
+                if (rs.getObject(columnName) == null) {
+                  null
+                } else {
+                  columnType match {
+                    case Types.BOOLEAN | Types.BIT                                   => rs.getBoolean(columnName)
+                    case Types.VARCHAR | Types.CLOB | Types.CHAR | Types.LONGVARCHAR => rs.getString(columnName)
+                    case Types.INTEGER                                               => rs.getInt(columnName)
+                    case Types.BIGINT                                                => rs.getLong(columnName)
+                    case Types.TIMESTAMP                                             => rs.getTimestamp(columnName)
                   }
+                }
               }
 
               val columnValues = values.map {

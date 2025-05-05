@@ -4,7 +4,6 @@ import java.io.FileOutputStream
 import java.nio.charset.StandardCharsets
 import java.sql.Connection
 import java.util.UUID
-
 import gitbucket.core.model.Activity
 import gitbucket.core.util.Directory.ActivityLog
 import gitbucket.core.util.JDBCUtil
@@ -15,6 +14,7 @@ import org.json4s.{Formats, NoTypeHints}
 import org.json4s.jackson.Serialization
 import org.json4s.jackson.Serialization.write
 
+import java.util.logging.Level
 import scala.util.Using
 
 object GitBucketCoreModule
@@ -76,21 +76,20 @@ object GitBucketCoreModule
             import JDBCUtil._
 
             val conn = context.get(Solidbase.CONNECTION).asInstanceOf[Connection]
-            val list = conn.select("SELECT * FROM ACTIVITY ORDER BY ACTIVITY_ID") {
-              rs =>
-                Activity(
-                  activityId = UUID.randomUUID().toString,
-                  userName = rs.getString("USER_NAME"),
-                  repositoryName = rs.getString("REPOSITORY_NAME"),
-                  activityUserName = rs.getString("ACTIVITY_USER_NAME"),
-                  activityType = rs.getString("ACTIVITY_TYPE"),
-                  message = rs.getString("MESSAGE"),
-                  additionalInfo = {
-                    val additionalInfo = rs.getString("ADDITIONAL_INFO")
-                    if (rs.wasNull()) None else Some(additionalInfo)
-                  },
-                  activityDate = rs.getTimestamp("ACTIVITY_DATE")
-                )
+            val list = conn.select("SELECT * FROM ACTIVITY ORDER BY ACTIVITY_ID") { rs =>
+              Activity(
+                activityId = UUID.randomUUID().toString,
+                userName = rs.getString("USER_NAME"),
+                repositoryName = rs.getString("REPOSITORY_NAME"),
+                activityUserName = rs.getString("ACTIVITY_USER_NAME"),
+                activityType = rs.getString("ACTIVITY_TYPE"),
+                message = rs.getString("MESSAGE"),
+                additionalInfo = {
+                  val additionalInfo = rs.getString("ADDITIONAL_INFO")
+                  if (rs.wasNull()) None else Some(additionalInfo)
+                },
+                activityDate = rs.getTimestamp("ACTIVITY_DATE")
+              )
             }
             Using.resource(new FileOutputStream(ActivityLog, true)) { out =>
               list.foreach { activity =>
@@ -117,4 +116,10 @@ object GitBucketCoreModule
       new Version("4.38.3"),
       new Version("4.38.4"),
       new Version("4.39.0", new LiquibaseMigration("update/gitbucket-core_4.39.xml")),
-    )
+      new Version("4.40.0"),
+      new Version("4.41.0"),
+      new Version("4.42.0", new LiquibaseMigration("update/gitbucket-core_4.42.xml")),
+      new Version("4.42.1")
+    ) {
+  java.util.logging.Logger.getLogger("liquibase").setLevel(Level.SEVERE)
+}

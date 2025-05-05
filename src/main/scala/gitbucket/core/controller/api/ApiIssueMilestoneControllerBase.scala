@@ -7,7 +7,7 @@ import gitbucket.core.util.Implicits._
 import org.scalatra.NoContent
 
 trait ApiIssueMilestoneControllerBase extends ControllerBase {
-  self: MilestonesService with WritableUsersAuthenticator with ReferrerAuthenticator =>
+  self: MilestonesService & WritableUsersAuthenticator & ReferrerAuthenticator =>
 
   /*
    * i. List milestones
@@ -16,8 +16,10 @@ trait ApiIssueMilestoneControllerBase extends ControllerBase {
   get("/api/v3/repos/:owner/:repository/milestones")(referrersOnly { repository =>
     val state = params.getOrElse("state", "all")
     // TODO "sort", "direction" params should be implemented.
-    val apiMilestones = (for (milestoneWithIssue <- getMilestonesWithIssueCount(repository.owner, repository.name)
-                                .sortBy(p => p._1.milestoneId))
+    val apiMilestones = (for (
+      milestoneWithIssue <- getMilestonesWithIssueCount(repository.owner, repository.name)
+        .sortBy(p => p._1.milestoneId)
+    )
       yield {
         ApiMilestone(
           repository.repository,

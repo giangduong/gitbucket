@@ -9,12 +9,8 @@ import gitbucket.core.util.{ReadableUsersAuthenticator, ReferrerAuthenticator, R
 import gitbucket.core.util.Implicits._
 
 trait ApiIssueControllerBase extends ControllerBase {
-  self: AccountService
-    with IssuesService
-    with IssueCreationService
-    with MilestonesService
-    with ReadableUsersAuthenticator
-    with ReferrerAuthenticator =>
+  self: AccountService & IssuesService & IssueCreationService & MilestonesService & ReadableUsersAuthenticator &
+    ReferrerAuthenticator =>
   /*
    * i. List issues
    * https://developer.github.com/v3/issues/#list-issues
@@ -29,7 +25,7 @@ trait ApiIssueControllerBase extends ControllerBase {
     val page = IssueSearchCondition.page(request)
     // TODO: more api spec condition
     val condition = IssueSearchCondition(request)
-    //val baseOwner = getAccountByUserName(repository.owner).get
+    // val baseOwner = getAccountByUserName(repository.owner).get
 
     val issues: List[(Issue, Account, List[Account])] =
       searchIssueByApi(
@@ -39,17 +35,16 @@ trait ApiIssueControllerBase extends ControllerBase {
         repos = repository.owner -> repository.name
       )
 
-    JsonFormat(issues.map {
-      case (issue, issueUser, assigneeUsers) =>
-        ApiIssue(
-          issue = issue,
-          repositoryName = RepositoryName(repository),
-          user = ApiUser(issueUser),
-          assignees = assigneeUsers.map(ApiUser(_)),
-          labels = getIssueLabels(repository.owner, repository.name, issue.issueId)
-            .map(ApiLabel(_, RepositoryName(repository))),
-          issue.milestoneId.flatMap { getApiMilestone(repository, _) }
-        )
+    JsonFormat(issues.map { case (issue, issueUser, assigneeUsers) =>
+      ApiIssue(
+        issue = issue,
+        repositoryName = RepositoryName(repository),
+        user = ApiUser(issueUser),
+        assignees = assigneeUsers.map(ApiUser(_)),
+        labels = getIssueLabels(repository.owner, repository.name, issue.issueId)
+          .map(ApiLabel(_, RepositoryName(repository))),
+        issue.milestoneId.flatMap { getApiMilestone(repository, _) }
+      )
     })
   })
 
@@ -126,7 +121,7 @@ trait ApiIssueControllerBase extends ControllerBase {
    */
 
   /*
- * vii. Unlock an issue
- * https://developer.github.com/v3/issues/#unlock-an-issue
- */
+   * vii. Unlock an issue
+   * https://developer.github.com/v3/issues/#unlock-an-issue
+   */
 }

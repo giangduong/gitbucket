@@ -24,13 +24,24 @@ import gitbucket.core.model.Profile.profile.blockingApi._
 import org.eclipse.jetty.webapp.WebAppContext
 import org.eclipse.jetty.server.{Request, Server}
 import org.json4s.jackson.JsonMethods._
+import org.json4s.jvalue2monadic
 import MergeServiceSpec._
 import org.json4s.JsonAST.{JArray, JString}
 
 class MergeServiceSpec extends AnyFunSpec with ServiceSpecBase {
-  val service = new MergeService with AccountService with ActivityService with IssuesService with LabelsService
-  with MilestonesService with RepositoryService with PrioritiesService with PullRequestService with CommitsService
-  with WebHookPullRequestService with WebHookPullRequestReviewCommentService with RequestCache {
+  val service = new MergeService
+    with AccountService
+    with ActivityService
+    with IssuesService
+    with LabelsService
+    with MilestonesService
+    with RepositoryService
+    with PrioritiesService
+    with PullRequestService
+    with CommitsService
+    with WebHookPullRequestService
+    with WebHookPullRequestReviewCommentService
+    with RequestCache {
     override protected def getReceiveHooks(): Seq[ReceiveHook] = Nil
   }
   val branch = "master"

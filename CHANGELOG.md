@@ -1,6 +1,33 @@
 # Changelog
 All changes to the project will be documented in this file.
 
+## 4.42.1 - 20 Jan 2025
+- Fix LDAP issue with SSL
+
+## 4.42.0 - 30 Dec 2024
+- Increase max branch name length 100 -> 255
+- Fix some GitHub incompatible Web APIs
+- Apply user-defined CSS after all plugins
+- Improve performance of listing commit logs
+- Drop Java 11 support. Java 17 is now required
+
+## 4.41.0 - 18 May 2024
+- Simplify pull request UI
+- Keyword search for issues and pull requests
+- New settings for max files and lines limit in showing diff
+- Adjust the default branch automatically when cloning external repository
+- Fix layout of branch selector
+- Performance improvement for listing branches
+- Upgrade internal libraries
+
+## 4.40.0 - 22 Oct 2023
+- Configurable default branch name
+- Support custom fields of issues and pull requests in search condition
+- Create pull request from default branch of forked repositories
+- News feed shows activities of all visible repositories
+- Drop Java 8 support
+- Improve git push performance
+
 ## 4.39.0 - 29 Apr 2023
 - Support enum type in custom fields of Issues and Pull requests
 - Hide large diffs by default

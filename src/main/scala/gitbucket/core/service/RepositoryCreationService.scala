@@ -2,10 +2,9 @@ package gitbucket.core.service
 
 import java.nio.file.Files
 import java.util.concurrent.ConcurrentHashMap
-
-import gitbucket.core.model.Profile.profile.blockingApi._
+import gitbucket.core.model.Profile.profile.blockingApi.*
 import gitbucket.core.model.activity.{CreateRepositoryInfo, ForkInfo}
-import gitbucket.core.util.Directory._
+import gitbucket.core.util.Directory.*
 import gitbucket.core.util.{FileUtil, JGitUtil, LockUtil}
 import gitbucket.core.model.{Account, Role}
 import gitbucket.core.plugin.PluginRegistry
@@ -18,6 +17,7 @@ import org.eclipse.jgit.lib.{Constants, FileMode}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.jdk.CollectionConverters._
 import scala.util.Using
 
 object RepositoryCreationService {
@@ -46,12 +46,7 @@ object RepositoryCreationService {
 }
 
 trait RepositoryCreationService {
-  self: AccountService
-    with RepositoryService
-    with LabelsService
-    with WikiService
-    with ActivityService
-    with PrioritiesService =>
+  self: AccountService & RepositoryService & LabelsService & WikiService & ActivityService & PrioritiesService =>
 
   def canCreateRepository(repositoryOwner: String, loginAccount: Account)(implicit session: Session): Boolean = {
     repositoryOwner == loginAccount.userName || getGroupsByUserName(loginAccount.userName)
@@ -92,7 +87,7 @@ trait RepositoryCreationService {
     RepositoryCreationService.startCreation(owner, name)
     try {
       Database() withTransaction { implicit session =>
-        //val ownerAccount = getAccountByUserName(owner).get
+        // val ownerAccount = getAccountByUserName(owner).get
         val loginUserName = loginAccount.userName
 
         val copyRepositoryDir = if (initOption == "COPY") {
@@ -167,6 +162,16 @@ trait RepositoryCreationService {
           try {
             Using.resource(Git.open(dir)) { git =>
               git.push().setRemote(gitdir.toURI.toString).setPushAll().setPushTags().call()
+              // Adjust the default branch
+              val branches = git.branchList().call().asScala.map(_.getName.stripPrefix("refs/heads/"))
+              if (!branches.contains(defaultBranch)) {
+                val defaultBranch = Seq("master", "main").find(branches.contains).getOrElse(branches.head)
+                saveRepositoryDefaultBranch(owner, name, defaultBranch)
+                // Change repository HEAD
+                Using.resource(Git.open(getRepositoryDir(owner, name))) { git =>
+                  git.getRepository.updateRef(Constants.HEAD, true).link(Constants.R_HEADS + defaultBranch)
+                }
+              }
             }
           } finally {
             FileUtils.deleteQuietly(dir)
@@ -214,9 +219,8 @@ trait RepositoryCreationService {
           // Set default collaborators for the private fork
           if (repository.repository.isPrivate) {
             // Copy collaborators from the source repository
-            getCollaborators(repository.owner, repository.name).foreach {
-              case (collaborator, _) =>
-                addCollaborator(accountName, repository.name, collaborator.collaboratorName, collaborator.role)
+            getCollaborators(repository.owner, repository.name).foreach { case (collaborator, _) =>
+              addCollaborator(accountName, repository.name, collaborator.collaboratorName, collaborator.role)
             }
             // Register an owner of the source repository as a collaborator
             addCollaborator(accountName, repository.name, repository.owner, Role.ADMIN.name)

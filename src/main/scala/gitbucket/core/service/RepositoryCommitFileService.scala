@@ -17,12 +17,8 @@ import org.eclipse.jgit.transport.{ReceiveCommand, ReceivePack}
 import scala.util.Using
 
 trait RepositoryCommitFileService {
-  self: AccountService
-    with ActivityService
-    with IssuesService
-    with PullRequestService
-    with WebHookPullRequestService
-    with RepositoryService =>
+  self: AccountService & ActivityService & IssuesService & PullRequestService & WebHookPullRequestService &
+    RepositoryService =>
 
   /**
    * Create multiple files by callback function.
@@ -65,7 +61,8 @@ trait RepositoryCommitFileService {
       path,
       newFileName,
       oldFileName,
-      if (content.nonEmpty) { content.getBytes(charset) } else { Array.emptyByteArray },
+      if (content.nonEmpty) { content.getBytes(charset) }
+      else { Array.emptyByteArray },
       message,
       commit,
       loginAccount,

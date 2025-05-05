@@ -45,8 +45,8 @@ trait WebHookService {
   private val logger = LoggerFactory.getLogger(classOf[WebHookService])
 
   /** get All WebHook informations of repository */
-  def getWebHooks(owner: String, repository: String)(
-    implicit s: Session
+  def getWebHooks(owner: String, repository: String)(implicit
+    s: Session
   ): List[(RepositoryWebHook, Set[WebHook.Event])] =
     RepositoryWebHooks
       .filter(_.byRepository(owner, repository))
@@ -63,8 +63,8 @@ trait WebHookService {
       .sortBy(_._1.url)
 
   /** get All WebHook informations of repository event */
-  def getWebHooksByEvent(owner: String, repository: String, event: WebHook.Event)(
-    implicit s: Session
+  def getWebHooksByEvent(owner: String, repository: String, event: WebHook.Event)(implicit
+    s: Session
   ): List[RepositoryWebHook] =
     RepositoryWebHooks
       .filter(_.byRepository(owner, repository))
@@ -78,8 +78,8 @@ trait WebHookService {
       .distinct
 
   /** get All WebHook information from repository to url */
-  def getWebHook(owner: String, repository: String, url: String)(
-    implicit s: Session
+  def getWebHook(owner: String, repository: String, url: String)(implicit
+    s: Session
   ): Option[(RepositoryWebHook, Set[WebHook.Event])] =
     RepositoryWebHooks
       .filter(_.byRepositoryUrl(owner, repository, url))
@@ -95,8 +95,8 @@ trait WebHookService {
       .headOption
 
   /** get All WebHook informations of repository */
-  def getWebHookById(id: Int)(
-    implicit s: Session
+  def getWebHookById(id: Int)(implicit
+    s: Session
   ): Option[(RepositoryWebHook, Set[WebHook.Event])] =
     RepositoryWebHooks
       .filter(_.byId(id))
@@ -367,7 +367,7 @@ trait WebHookService {
 }
 
 trait WebHookPullRequestService extends WebHookService {
-  self: AccountService with RepositoryService with PullRequestService with IssuesService =>
+  self: AccountService & RepositoryService & PullRequestService & IssuesService =>
 
   import WebHookService._
   // https://developer.github.com/v3/activity/events/types/#issuesevent
@@ -451,8 +451,8 @@ trait WebHookPullRequestService extends WebHookService {
   }
 
   /** @return Map[(issue, issueUser, pullRequest, baseOwner, headOwner), webHooks] */
-  def getPullRequestsByRequestForWebhook(userName: String, repositoryName: String, branch: String)(
-    implicit s: Session
+  def getPullRequestsByRequestForWebhook(userName: String, repositoryName: String, branch: String)(implicit
+    s: Session
   ): Map[(Issue, Account, PullRequest, Account, Account), List[RepositoryWebHook]] =
     (for {
       is <- Issues if is.closed === false.bind
@@ -513,7 +513,7 @@ trait WebHookPullRequestService extends WebHookService {
 }
 
 trait WebHookPullRequestReviewCommentService extends WebHookService {
-  self: AccountService with RepositoryService with PullRequestService with IssuesService with CommitsService =>
+  self: AccountService & RepositoryService & PullRequestService & IssuesService & CommitsService =>
   def callPullRequestReviewCommentWebHook(
     action: String,
     comment: CommitComment,
@@ -561,7 +561,7 @@ trait WebHookPullRequestReviewCommentService extends WebHookService {
 }
 
 trait WebHookIssueCommentService extends WebHookPullRequestService {
-  self: AccountService with RepositoryService with PullRequestService with IssuesService =>
+  self: AccountService & RepositoryService & PullRequestService & IssuesService =>
 
   import WebHookService._
   def callIssueCommentWebHook(
@@ -652,8 +652,8 @@ object WebHookService {
   ) extends FieldSerializable
       with WebHookPayload {
     val compare = commits.size match {
-      case 0                            => ApiPath(s"/${repository.full_name}") // maybe test hook on un-initialized repository
-      case 1                            => ApiPath(s"/${repository.full_name}/commit/${after}")
+      case 0 => ApiPath(s"/${repository.full_name}") // maybe test hook on un-initialized repository
+      case 1 => ApiPath(s"/${repository.full_name}/commit/${after}")
       case _ if before.forall(_ == '0') => ApiPath(s"/${repository.full_name}/compare/${commits.head.id}^...${after}")
       case _                            => ApiPath(s"/${repository.full_name}/compare/${before}...${after}")
     }
@@ -878,15 +878,14 @@ object WebHookService {
       sender: Account
     ): WebHookGollumPayload = {
       WebHookGollumPayload(
-        pages = pages.map {
-          case (action, pageName, sha) =>
-            WebHookGollumPagePayload(
-              action = action,
-              page_name = pageName,
-              title = pageName,
-              sha = sha,
-              html_url = ApiPath(s"/${RepositoryName(repository).fullName}/wiki/${StringUtil.urlDecode(pageName)}")
-            )
+        pages = pages.map { case (action, pageName, sha) =>
+          WebHookGollumPagePayload(
+            action = action,
+            page_name = pageName,
+            title = pageName,
+            sha = sha,
+            html_url = ApiPath(s"/${RepositoryName(repository).fullName}/wiki/${StringUtil.urlDecode(pageName)}")
+          )
         },
         repository = ApiRepository(repository, repositoryUser),
         sender = ApiUser(sender)

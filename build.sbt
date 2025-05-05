@@ -1,95 +1,74 @@
-import sbtlicensereport.license.{DepModuleInfo, LicenseInfo}
 import com.jsuereth.sbtpgp.PgpKeys._
 
 val Organization = "io.github.gitbucket"
 val Name = "gitbucket"
-val GitBucketVersion = "4.40.0-SNAPSHOT"
-val ScalatraVersion = "3.0.0-M3"
-val JettyVersion = "10.0.15"
-val JgitVersion = "6.5.0.202303070854-r"
+val GitBucketVersion = "4.42.1"
+val ScalatraVersion = "3.1.2"
+val JettyVersion = "10.0.25"
+val JgitVersion = "6.10.0.202406032230-r"
 
 lazy val root = (project in file("."))
-  .enablePlugins(SbtTwirl, ScalatraPlugin)
+  .enablePlugins(SbtTwirl, ContainerPlugin)
 
 sourcesInBase := false
 organization := Organization
 name := Name
 version := GitBucketVersion
-scalaVersion := "2.13.10"
+scalaVersion := "2.13.16"
 
-crossScalaVersions += "3.2.2"
-
-conflictWarning := {
-  if (scalaBinaryVersion.value == "3") {
-    // TODO remove this workaround
-    ConflictWarning("warn", Level.Warn, false)
-  } else {
-    conflictWarning.value
-  }
-}
+crossScalaVersions += "3.6.4"
 
 // scalafmtOnCompile := true
 
 coverageExcludedPackages := ".*\\.html\\..*"
 
-// dependency settings
-resolvers ++= Seq(
-  Classpaths.typesafeReleases,
-  "sonatype-snapshot" at "https://oss.sonatype.org/content/repositories/snapshots/"
-)
-
 libraryDependencies ++= Seq(
-  "org.eclipse.jgit"                % "org.eclipse.jgit.http.server" % JgitVersion,
-  "org.eclipse.jgit"                % "org.eclipse.jgit.archive"     % JgitVersion,
-  "org.scalatra"                    %% "scalatra"                    % ScalatraVersion,
-  "org.scalatra"                    %% "scalatra-json"               % ScalatraVersion,
-  "org.scalatra"                    %% "scalatra-forms"              % ScalatraVersion,
-  "org.json4s"                      %% "json4s-jackson"              % "4.0.6",
-  "commons-io"                      % "commons-io"                   % "2.11.0",
-  "io.github.gitbucket"             % "solidbase"                    % "1.0.5",
-  "io.github.gitbucket"             % "markedj"                      % "1.0.17",
-  "org.apache.commons"              % "commons-compress"             % "1.23.0",
-  "org.apache.commons"              % "commons-email"                % "1.5",
-  "commons-net"                     % "commons-net"                  % "3.9.0",
-  "org.apache.httpcomponents"       % "httpclient"                   % "4.5.14",
-  "org.apache.sshd"                 % "apache-sshd"                  % "2.9.2" exclude ("org.slf4j", "slf4j-jdk14") exclude ("org.apache.sshd", "sshd-mina") exclude ("org.apache.sshd", "sshd-netty"),
-  "org.apache.tika"                 % "tika-core"                    % "2.7.0",
-  "com.github.takezoe"              %% "blocking-slick-32"           % "0.0.12" cross CrossVersion.for3Use2_13,
-  "com.novell.ldap"                 % "jldap"                        % "2009-10-07",
-  "com.h2database"                  % "h2"                           % "1.4.199",
-  "org.mariadb.jdbc"                % "mariadb-java-client"          % "2.7.6",
-  "org.postgresql"                  % "postgresql"                   % "42.6.0",
-  "ch.qos.logback"                  % "logback-classic"              % "1.4.7",
-  "com.zaxxer"                      % "HikariCP"                     % "4.0.3" exclude ("org.slf4j", "slf4j-api"),
-  "com.typesafe"                    % "config"                       % "1.4.2",
-  "fr.brouillard.oss.security.xhub" % "xhub4j-core"                  % "1.1.0",
-  "io.github.java-diff-utils"       % "java-diff-utils"              % "4.12",
-  "org.cache2k"                     % "cache2k-all"                  % "1.6.0.Final",
-  "net.coobird"                     % "thumbnailator"                % "0.4.19",
-  "com.github.zafarkhaja"           % "java-semver"                  % "0.9.0",
-  "com.nimbusds"                    % "oauth2-oidc-sdk"              % "10.9",
-  "org.eclipse.jetty"               % "jetty-webapp"                 % JettyVersion % "provided",
-  "javax.servlet"                   % "javax.servlet-api"            % "3.1.0" % "provided",
-  "junit"                           % "junit"                        % "4.13.2" % "test",
-  "org.scalatra"                    %% "scalatra-scalatest"          % ScalatraVersion % "test",
-  "org.mockito"                     % "mockito-core"                 % "5.3.1" % "test",
-  "com.dimafeng"                    %% "testcontainers-scala"        % "0.40.15" % "test",
-  "org.testcontainers"              % "mysql"                        % "1.18.0" % "test",
-  "org.testcontainers"              % "postgresql"                   % "1.18.0" % "test",
-  "net.i2p.crypto"                  % "eddsa"                        % "0.3.0",
-  "is.tagomor.woothee"              % "woothee-java"                 % "1.11.0",
-  "org.ec4j.core"                   % "ec4j-core"                    % "0.3.0",
-  "org.kohsuke"                     % "github-api"                   % "1.314" % "test"
+  "org.eclipse.jgit"          % "org.eclipse.jgit.http.server" % JgitVersion,
+  "org.eclipse.jgit"          % "org.eclipse.jgit.archive"     % JgitVersion,
+  "org.scalatra"             %% "scalatra-javax"               % ScalatraVersion,
+  "org.scalatra"             %% "scalatra-json-javax"          % ScalatraVersion,
+  "org.scalatra"             %% "scalatra-forms-javax"         % ScalatraVersion,
+  "org.json4s"               %% "json4s-jackson"               % "4.1.0-M8",
+  "commons-io"                % "commons-io"                   % "2.19.0",
+  "io.github.gitbucket"       % "solidbase"                    % "1.1.0",
+  "io.github.gitbucket"       % "markedj"                      % "1.0.20",
+  "org.tukaani"               % "xz"                           % "1.10",
+  "org.apache.commons"        % "commons-compress"             % "1.27.1",
+  "org.apache.commons"        % "commons-email"                % "1.6.0",
+  "commons-net"               % "commons-net"                  % "3.11.1",
+  "org.apache.httpcomponents" % "httpclient"                   % "4.5.14",
+  "org.apache.sshd"           % "apache-sshd"                  % "2.15.0" exclude ("org.slf4j", "slf4j-jdk14") exclude (
+    "org.apache.sshd",
+    "sshd-mina"
+  ) exclude ("org.apache.sshd", "sshd-netty"),
+  "org.apache.tika"                 % "tika-core"                % "3.1.0",
+  "com.github.takezoe"             %% "blocking-slick"           % "0.0.14",
+  "com.novell.ldap"                 % "jldap"                    % "2009-10-07",
+  "com.h2database"                  % "h2"                       % "1.4.199",
+  "org.mariadb.jdbc"                % "mariadb-java-client"      % "2.7.12",
+  "org.postgresql"                  % "postgresql"               % "42.7.5",
+  "ch.qos.logback"                  % "logback-classic"          % "1.5.18",
+  "com.zaxxer"                      % "HikariCP"                 % "6.3.0" exclude ("org.slf4j", "slf4j-api"),
+  "com.typesafe"                    % "config"                   % "1.4.3",
+  "fr.brouillard.oss.security.xhub" % "xhub4j-core"              % "1.1.0",
+  "io.github.java-diff-utils"       % "java-diff-utils"          % "4.15",
+  "org.cache2k"                     % "cache2k-all"              % "1.6.0.Final",
+  "net.coobird"                     % "thumbnailator"            % "0.4.20",
+  "com.github.zafarkhaja"           % "java-semver"              % "0.10.2",
+  "com.nimbusds"                    % "oauth2-oidc-sdk"          % "11.23.1",
+  "org.eclipse.jetty"               % "jetty-webapp"             % JettyVersion    % "provided",
+  "javax.servlet"                   % "javax.servlet-api"        % "3.1.0"         % "provided",
+  "junit"                           % "junit"                    % "4.13.2"        % "test",
+  "org.scalatra"                   %% "scalatra-scalatest-javax" % ScalatraVersion % "test",
+  "org.mockito"                     % "mockito-core"             % "5.17.0"        % "test",
+  "com.dimafeng"                   %% "testcontainers-scala"     % "0.43.0"        % "test",
+  "org.testcontainers"              % "mysql"                    % "1.21.0"        % "test",
+  "org.testcontainers"              % "postgresql"               % "1.21.0"        % "test",
+  "net.i2p.crypto"                  % "eddsa"                    % "0.3.0",
+  "is.tagomor.woothee"              % "woothee-java"             % "1.11.0",
+  "org.ec4j.core"                   % "ec4j-core"                % "1.1.0",
+  "org.kohsuke"                     % "github-api"               % "1.327"         % "test"
 )
-
-libraryDependencies ~= {
-  _.map {
-    case x if x.name == "twirl-api" =>
-      x cross CrossVersion.for3Use2_13
-    case x =>
-      x
-  }
-}
 
 // Compiler settings
 scalacOptions := Seq(
@@ -100,8 +79,16 @@ scalacOptions := Seq(
   "-Wunused:imports",
   "-Wconf:cat=unused&src=twirl/.*:s,cat=unused&src=scala/gitbucket/core/model/[^/]+\\.scala:s"
 )
+scalacOptions ++= {
+  scalaBinaryVersion.value match {
+    case "2.13" =>
+      Seq("-Xsource:3-cross")
+    case _ =>
+      Nil
+  }
+}
 compile / javacOptions ++= Seq("-target", "11", "-source", "11")
-Jetty / javaOptions += "-Dlogback.configurationFile=/logback-dev.xml"
+Container / javaOptions += "-Dlogback.configurationFile=/logback-dev.xml"
 
 // Test settings
 //testOptions in Test += Tests.Argument("-l", "ExternalDBTest")
@@ -125,8 +112,8 @@ assembly / assemblyMergeStrategy := {
 
 // Exclude a war file from published artifacts
 signedArtifacts := {
-  signedArtifacts.value.filterNot {
-    case (_, file) => file.getName.endsWith(".war") || file.getName.endsWith(".war.asc")
+  signedArtifacts.value.filterNot { case (_, file) =>
+    file.getName.endsWith(".war") || file.getName.endsWith(".war.asc")
   }
 }
 
@@ -168,9 +155,11 @@ executableKey := {
   // include jetty classes
   val jettyJars = Keys.update.value select configurationFilter(name = ExecutableConfig.name)
   jettyJars foreach { jar =>
-    IO unzip (jar, temp, (name: String) =>
-      (name startsWith "javax/") ||
-        (name startsWith "org/"))
+    IO unzip (
+      jar,
+      temp,
+      (name: String) => (name startsWith "javax/") || (name startsWith "org/") || (name startsWith "META-INF/services/")
+    )
   }
 
   // include original war file
@@ -195,7 +184,7 @@ executableKey := {
         val url = "https://github.com/" +
           s"gitbucket/gitbucket-${pluginId}-plugin/releases/download/${pluginVersion}/gitbucket-${pluginId}-plugin-${pluginVersion}.jar"
         log info s"Download: ${url}"
-        IO transfer (new java.net.URL(url).openStream, pluginsDir / url.substring(url.lastIndexOf("/") + 1))
+        IO transfer (new java.net.URI(url).toURL.openStream, pluginsDir / url.substring(url.lastIndexOf("/") + 1))
       case _ => ()
     }
   }
@@ -216,10 +205,9 @@ executableKey := {
     "md5" -> "MD5",
     "sha1" -> "SHA-1",
     "sha256" -> "SHA-256"
-  ).foreach {
-    case (extension, algorithm) =>
-      val checksumFile = workDir / (warName + "." + extension)
-      Checksums generate (outputFile, checksumFile, algorithm)
+  ).foreach { case (extension, algorithm) =>
+    val checksumFile = workDir / (warName + "." + extension)
+    Checksums generate (outputFile, checksumFile, algorithm)
   }
 
   // done
@@ -295,10 +283,12 @@ Test / testOptions ++= {
   }
 }
 
-Jetty / javaOptions ++= Seq(
+Container / javaOptions ++= Seq(
   "-Dlogback.configurationFile=/logback-dev.xml",
   "-Xdebug",
   "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8000",
   "-Dorg.eclipse.jetty.annotations.AnnotationParser.LEVEL=OFF",
-  //"-Ddev-features=keep-session"
+  // "-Ddev-features=keep-session"
 )
+Container / containerLibs := Seq(("org.eclipse.jetty" % "jetty-runner" % JettyVersion).intransitive())
+Container / containerMain := "org.eclipse.jetty.runner.Runner"

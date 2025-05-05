@@ -11,10 +11,10 @@ import gitbucket.core.service.{
   RepositoryService,
   RequestCache
 }
-import gitbucket.core.util._
-import gitbucket.core.util.Directory._
-import gitbucket.core.util.Implicits._
-import org.scalatra.forms._
+import gitbucket.core.util.*
+import gitbucket.core.util.Directory.*
+import gitbucket.core.util.Implicits.*
+import org.scalatra.forms.*
 import gitbucket.core.releases.html
 import org.apache.commons.io.FileUtils
 import org.eclipse.jgit.api.Git
@@ -33,20 +33,15 @@ class ReleaseController
     with RequestCache
 
 trait ReleaseControllerBase extends ControllerBase {
-  self: RepositoryService
-    with AccountService
-    with ReleaseService
-    with ReadableUsersAuthenticator
-    with ReferrerAuthenticator
-    with WritableUsersAuthenticator
-    with ActivityService =>
+  self: RepositoryService & AccountService & ReleaseService & ReadableUsersAuthenticator & ReferrerAuthenticator &
+    WritableUsersAuthenticator & ActivityService =>
 
-  case class ReleaseForm(
+  private case class ReleaseForm(
     name: String,
     content: Option[String]
   )
 
-  val releaseForm = mapping(
+  private val releaseForm = mapping(
     "name" -> trim(text(required)),
     "content" -> trim(optional(text()))
   )(ReleaseForm.apply)
@@ -106,42 +101,39 @@ trait ReleaseControllerBase extends ControllerBase {
   })
 
   post("/:owner/:repository/releases/*/create", releaseForm)(writableUsersOnly { (form, repository) =>
-    context.withLoginAccount {
-      loginAccount =>
-        val tagName = multiParams("splat").head
+    context.withLoginAccount { loginAccount =>
+      val tagName = multiParams("splat").head
 
-        // Insert into RELEASE
-        createRelease(repository.owner, repository.name, form.name, form.content, tagName, loginAccount)
+      // Insert into RELEASE
+      createRelease(repository.owner, repository.name, form.name, form.content, tagName, loginAccount)
 
-        // Insert into RELEASE_ASSET
-        val files = params.toMap.collect {
-          case (name, value) if name.startsWith("file:") =>
-            val Array(_, fileId) = name.split(":")
-            (fileId, value)
-        }
-        files.foreach {
-          case (fileId, fileName) =>
-            val size =
-              new File(
-                getReleaseFilesDir(repository.owner, repository.name),
-                FileUtil.checkFilename(tagName + "/" + fileId)
-              ).length
-            createReleaseAsset(repository.owner, repository.name, tagName, fileId, fileName, size, loginAccount)
-        }
+      // Insert into RELEASE_ASSET
+      val files = params.toMap.collect {
+        case (name, value) if name.startsWith("file:") =>
+          val Array(_, fileId) = name.split(":")
+          (fileId, value)
+      }
+      files.foreach { case (fileId, fileName) =>
+        val size =
+          new File(
+            getReleaseFilesDir(repository.owner, repository.name),
+            FileUtil.checkFilename(tagName + "/" + fileId)
+          ).length
+        createReleaseAsset(repository.owner, repository.name, tagName, fileId, fileName, size, loginAccount)
+      }
 
-        val releaseInfo = ReleaseInfo(repository.owner, repository.name, loginAccount.userName, form.name, tagName)
-        recordActivity(releaseInfo)
+      val releaseInfo = ReleaseInfo(repository.owner, repository.name, loginAccount.userName, form.name, tagName)
+      recordActivity(releaseInfo)
 
-        redirect(s"/${repository.owner}/${repository.name}/releases/${tagName}")
+      redirect(s"/${repository.owner}/${repository.name}/releases/$tagName")
     }
   })
 
   get("/:owner/:repository/changelog/*...*")(writableUsersOnly { repository =>
-    val Seq(previousTag, currentTag) = multiParams("splat")
-    val previousTagId = repository.tags.collectFirst { case x if x.name == previousTag => x.commitId }.getOrElse("")
-
     val commitLog = Using.resource(Git.open(getRepositoryDir(repository.owner, repository.name))) { git =>
-      val commits = JGitUtil.getCommitLog(git, previousTagId, currentTag).reverse
+      val Seq(previousTag, currentTag) = multiParams("splat")
+
+      val commits = JGitUtil.getCommitLog(git, previousTag, currentTag).reverse
       commits
         .map { commit =>
           s"- ${commit.shortMessage} ${commit.id}"
@@ -171,48 +163,45 @@ trait ReleaseControllerBase extends ControllerBase {
   })
 
   post("/:owner/:repository/releases/*/edit", releaseForm)(writableUsersOnly { (form, repository) =>
-    context.withLoginAccount {
-      loginAccount =>
-        val tagName = multiParams("splat").head
+    context.withLoginAccount { loginAccount =>
+      val tagName = multiParams("splat").head
 
-        getRelease(repository.owner, repository.name, tagName)
-          .map {
-            release =>
-              // Update RELEASE
-              updateRelease(repository.owner, repository.name, tagName, form.name, form.content)
+      getRelease(repository.owner, repository.name, tagName)
+        .map { release =>
+          // Update RELEASE
+          updateRelease(repository.owner, repository.name, tagName, form.name, form.content)
 
-              // Delete and Insert RELEASE_ASSET
-              val assets = getReleaseAssets(repository.owner, repository.name, tagName)
-              deleteReleaseAssets(repository.owner, repository.name, tagName)
+          // Delete and Insert RELEASE_ASSET
+          val assets = getReleaseAssets(repository.owner, repository.name, tagName)
+          deleteReleaseAssets(repository.owner, repository.name, tagName)
 
-              val files = params.toMap.collect {
-                case (name, value) if name.startsWith("file:") =>
-                  val Array(_, fileId) = name.split(":")
-                  (fileId, value)
-              }
-              files.foreach {
-                case (fileId, fileName) =>
-                  val size =
-                    new File(
-                      getReleaseFilesDir(repository.owner, repository.name),
-                      FileUtil.checkFilename(tagName + "/" + fileId)
-                    ).length
-                  createReleaseAsset(repository.owner, repository.name, tagName, fileId, fileName, size, loginAccount)
-              }
-
-              assets.foreach { asset =>
-                if (!files.exists { case (fileId, _) => fileId == asset.fileName }) {
-                  val file = new File(
-                    getReleaseFilesDir(repository.owner, repository.name),
-                    FileUtil.checkFilename(release.tag + "/" + asset.fileName)
-                  )
-                  FileUtils.forceDelete(file)
-                }
-              }
-
-              redirect(s"/${release.userName}/${release.repositoryName}/releases/${tagName}")
+          val files = params.toMap.collect {
+            case (name, value) if name.startsWith("file:") =>
+              val Array(_, fileId) = name.split(":")
+              (fileId, value)
           }
-          .getOrElse(NotFound())
+          files.foreach { case (fileId, fileName) =>
+            val size =
+              new File(
+                getReleaseFilesDir(repository.owner, repository.name),
+                FileUtil.checkFilename(tagName + "/" + fileId)
+              ).length
+            createReleaseAsset(repository.owner, repository.name, tagName, fileId, fileName, size, loginAccount)
+          }
+
+          assets.foreach { asset =>
+            if (!files.exists { case (fileId, _) => fileId == asset.fileName }) {
+              val file = new File(
+                getReleaseFilesDir(repository.owner, repository.name),
+                FileUtil.checkFilename(release.tag + "/" + asset.fileName)
+              )
+              FileUtils.forceDelete(file)
+            }
+          }
+
+          redirect(s"/${release.userName}/${release.repositoryName}/releases/$tagName")
+        }
+        .getOrElse(NotFound())
     }
   })
 
@@ -228,7 +217,7 @@ trait ReleaseControllerBase extends ControllerBase {
   })
 
   private def fetchReleases(repository: RepositoryService.RepositoryInfo, page: Int) = {
-    import gitbucket.core.service.ReleaseService._
+    import gitbucket.core.service.ReleaseService.*
 
     val (offset, limit) = ((page - 1) * ReleaseLimit, ReleaseLimit)
     val tagsToDisplay = repository.tags.reverse.slice(offset, offset + limit)
@@ -237,9 +226,12 @@ trait ReleaseControllerBase extends ControllerBase {
     val assets = getReleaseAssetsMap(repository.owner, repository.name, releases)
 
     val tagsWithReleases = tagsToDisplay.map { tag =>
-      (tag, releases.find(_.tag == tag.name).map { release =>
-        (release, assets(release))
-      })
+      (
+        tag,
+        releases.find(_.tag == tag.name).map { release =>
+          (release, assets(release))
+        }
+      )
     }
     tagsWithReleases
   }
