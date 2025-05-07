@@ -19,8 +19,7 @@ gh repo set-default https://github.com/giangduong/gitbucket
 
 # Fetch the latest commit hash from the target branch
 COMMIT_SHA=$(git rev-parse origin/$TARGET_BRANCH)
-echo $COMMIT_SHA
-exit
+
 # Create a tag pointing to that commit
 git tag "$TAG_VERSION" "$COMMIT_SHA"
 git push origin "$TAG_VERSION"
