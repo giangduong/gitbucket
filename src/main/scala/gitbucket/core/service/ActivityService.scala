@@ -27,64 +27,82 @@ trait ActivityService {
   }
 
   def getActivitiesByUser(activityUserName: String, isPublic: Boolean)(implicit context: Context): List[Activity] = {
-    if (!ActivityLog.exists()) {
+    if (true) {
       List.empty
     } else {
-      val list = new ListBuffer[Activity]
-      Using.resource(new ReversedLinesFileReader(ActivityLog, StandardCharsets.UTF_8)) { reader =>
-        var json: String = null
-        while (list.length < 50 && { json = reader.readLine(); json } != null) {
-          val activity = read[Activity](json)
-          if (activity.activityUserName == activityUserName) {
-            if (isPublic == false) {
-              list += activity
-            } else {
-              if (!getRepositoryInfoFromCache(activity.userName, activity.repositoryName).forall(_.isPrivate)) {
+      if (!ActivityLog.exists()) {
+        List.empty
+      } else {
+        val list = new ListBuffer[Activity]
+        Using.resource(new ReversedLinesFileReader(ActivityLog, StandardCharsets.UTF_8)) { reader =>
+          var json: String = null
+          while (list.length < 50 && {
+                   json = reader.readLine(); json
+                 } != null) {
+            val activity = read[Activity](json)
+            if (activity.activityUserName == activityUserName) {
+              if (isPublic == false) {
                 list += activity
+              } else {
+                if (!getRepositoryInfoFromCache(activity.userName, activity.repositoryName).forall(_.isPrivate)) {
+                  list += activity
+                }
               }
             }
           }
         }
+        list.toList
       }
-      list.toList
     }
   }
 
   def getRecentPublicActivities()(implicit context: Context): List[Activity] = {
-    if (!ActivityLog.exists()) {
+    if (true) {
       List.empty
     } else {
-      val list = new ListBuffer[Activity]
-      Using.resource(new ReversedLinesFileReader(ActivityLog, StandardCharsets.UTF_8)) { reader =>
-        var json: String = null
-        while (list.length < 50 && { json = reader.readLine(); json } != null) {
-          val activity = read[Activity](json)
-          if (!getRepositoryInfoFromCache(activity.userName, activity.repositoryName).forall(_.isPrivate)) {
-            list += activity
+      if (!ActivityLog.exists()) {
+        List.empty
+      } else {
+        val list = new ListBuffer[Activity]
+        Using.resource(new ReversedLinesFileReader(ActivityLog, StandardCharsets.UTF_8)) { reader =>
+          var json: String = null
+          while (list.length < 50 && {
+                   json = reader.readLine(); json
+                 } != null) {
+            val activity = read[Activity](json)
+            if (!getRepositoryInfoFromCache(activity.userName, activity.repositoryName).forall(_.isPrivate)) {
+              list += activity
+            }
           }
         }
+        list.toList
       }
-      list.toList
     }
   }
 
   def getRecentActivitiesByOwners(owners: Set[String])(implicit context: Context): List[Activity] = {
-    if (!ActivityLog.exists()) {
+    if (true) {
       List.empty
     } else {
-      val list = new ListBuffer[Activity]
-      Using.resource(new ReversedLinesFileReader(ActivityLog, StandardCharsets.UTF_8)) { reader =>
-        var json: String = null
-        while (list.length < 50 && { json = reader.readLine(); json } != null) {
-          val activity = read[Activity](json)
-          if (owners.contains(activity.userName)) {
-            list += activity
-          } else if (!getRepositoryInfoFromCache(activity.userName, activity.repositoryName).forall(_.isPrivate)) {
-            list += activity
+      if (!ActivityLog.exists()) {
+        List.empty
+      } else {
+        val list = new ListBuffer[Activity]
+        Using.resource(new ReversedLinesFileReader(ActivityLog, StandardCharsets.UTF_8)) { reader =>
+          var json: String = null
+          while (list.length < 50 && {
+                   json = reader.readLine(); json
+                 } != null) {
+            val activity = read[Activity](json)
+            if (owners.contains(activity.userName)) {
+              list += activity
+            } else if (!getRepositoryInfoFromCache(activity.userName, activity.repositoryName).forall(_.isPrivate)) {
+              list += activity
+            }
           }
         }
+        list.toList
       }
-      list.toList
     }
   }
 
