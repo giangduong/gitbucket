@@ -22,7 +22,7 @@ COMMIT_SHA=$(git rev-parse origin/$TARGET_BRANCH)
 
 # Create a tag pointing to that commit
 git tag "$TAG_VERSION" "$COMMIT_SHA"
-git push origin "$TAG_VERSION"
+#git push origin "$TAG_VERSION"
 
 # Create GitHub release
 gh release create "$TAG_VERSION" "$WAR_FILE" \
