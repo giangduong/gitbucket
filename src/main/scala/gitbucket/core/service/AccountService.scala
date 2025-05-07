@@ -156,6 +156,32 @@ trait AccountService {
         .&&(t.removed === false.bind, !includeRemoved)
     } sortBy (_.userName) list
   }
+  def filterUsers(
+    query: String,
+    includeRemoved: Boolean = true,
+    includeGroups: Boolean = true,
+    page: Int = 1,
+    pageSize: Int = 50
+  )(implicit s: Session): List[Account] = {
+    val baseQuery = Accounts filter { t =>
+      val base = (1.bind === 1.bind) // always true, just for chaining
+      val withGroups = if (!includeGroups) base && (t.groupAccount === false.bind) else base
+      val withRemoved = if (!includeRemoved) withGroups && (t.removed === false.bind) else withGroups
+      val withQuery =
+        if (query.nonEmpty) withRemoved && (t.userName.toLowerCase like s"%${query.toLowerCase}%") else withRemoved
+      withQuery
+    }
+
+    val offset = (page - 1) * pageSize
+
+    val rs = baseQuery
+      .sortBy(_.userName)
+      .drop(offset)
+      .take(pageSize)
+    // dump sql query to console
+
+    rs.list
+  }
 
   def isLastAdministrator(account: Account)(implicit s: Session): Boolean = {
     if (account.isAdmin) {

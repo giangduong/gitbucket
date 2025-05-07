@@ -1,8 +1,12 @@
-@(users: List[gitbucket.core.model.Account], members: Map[String, List[String]], includeRemoved: Boolean, includeGroups: Boolean)(implicit context: gitbucket.core.controller.Context)
+@(users: List[gitbucket.core.model.Account], members: Map[String, List[String]], includeRemoved: Boolean, includeGroups: Boolean, pageNumber: Int, pageSize: Int, queryText: String)(implicit context: gitbucket.core.controller.Context)
 @import gitbucket.core.view.helpers
 @gitbucket.core.html.main("Manage Users"){
   @gitbucket.core.admin.html.menu("users"){
     <div class="pull-right" style="margin-bottom: 4px;">
+      <form action="@context.path/admin/users" method="get">
+        <input type="text" name="queryText" value="@queryText" placeholder="Search users" />
+        <button type="submit" class="btn btn-default">Search</button>
+      </form>
       <a href="@context.path/admin/users/_newuser" class="btn btn-default">New user</a>
       <a href="@context.path/admin/users/_newgroup" class="btn btn-default">New group</a>
     </div>
@@ -67,6 +71,20 @@
         </tr>
       }
     </table>
+    <!-- pagination -->
+    <div class="text-center">
+      <ul class="pagination">
+        @if(pageNumber > 1){
+          <li><a href="@context.path/admin/users?page=@(pageNumber - 1)">Previous</a></li>
+        }
+        @for(i <- pageNumber - 3 to pageNumber + 3){
+          @if(i > 0){
+            <li><a href="@context.path/admin/users?page=@i">@i</a></li>
+          }
+        }
+        <li><a href="@context.path/admin/users?page=@(pageNumber + 1)">Next</a></li>
+      </ul>
+    </div>
   }
 }
 <script>

@@ -379,10 +379,38 @@ trait SystemSettingsControllerBase extends AccountManagementControllerBase {
 
     redirect("/admin/plugins")
   })
+  get("/admin/users")(adminOnly {
+    val includeRemoved = params.get("includeRemoved").exists(_.toLowerCase == "true")
+    val includeGroups = params.get("includeGroups").exists(_.toLowerCase == "true")
+    val queryText = params.getOrElse("queryText", "").toLowerCase
+    val pageNumber = params.get("pageNumber").flatMap(s => scala.util.Try(s.toInt).toOption).getOrElse(1)
+    val pageSize = params.get("pageSize").flatMap(s => scala.util.Try(s.toInt).toOption).getOrElse(50)
+
+    // Delegate filtering and paging to filterUsers
+    val users = filterUsers(
+      query = queryText,
+      includeRemoved = includeRemoved,
+      includeGroups = includeGroups,
+      page = pageNumber,
+      pageSize = pageSize
+    )
+
+    // Group members only for visible group accounts
+    val members =
+      users.collect {
+        case account if account.isGroupAccount =>
+          account.userName -> getGroupMembers(account.userName).map(_.userName)
+      }.toMap
+
+    html.userlist(users, members, includeRemoved, includeGroups, pageNumber, pageSize, queryText)
+  })
+
+  /*
 
   get("/admin/users")(adminOnly {
     val includeRemoved = params.get("includeRemoved").exists(_.toBoolean)
     val includeGroups = params.get("includeGroups").exists(_.toBoolean)
+
     val users = getAllUsers(includeRemoved, includeGroups)
     val members = users.collect {
       case account if (account.isGroupAccount) =>
@@ -391,6 +419,7 @@ trait SystemSettingsControllerBase extends AccountManagementControllerBase {
 
     html.userlist(users, members, includeRemoved, includeGroups)
   })
+   */
 
   get("/admin/users/_newuser")(adminOnly {
     html.user(None, Nil)
