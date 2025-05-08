@@ -5,7 +5,7 @@ set -e
 TARGET_BRANCH="v4.38.4"
 RELEASE_VERSION=$(date '+%Y%m%d_%H-%M-%S')
 TAG_VERSION="v4.38.4.${RELEASE_VERSION}"
-WAR_FILE="./target/scala-2.13/gitbucket_2.13-4.38.4.war"
+WAR_FILE="./target/executable/gitbucket.war"
 
 # Check prerequisites
 
