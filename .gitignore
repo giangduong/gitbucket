@@ -23,6 +23,9 @@ project/plugins/project/
 .cache-main
 .cache-tests
 .settings
+tmp
+repositories
+plugins
 
 # IntelliJ specific
 .idea/

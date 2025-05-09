@@ -29,7 +29,7 @@ trait ActivityService {
   }
 
   def getActivitiesByUser(activityUserName: String, isPublic: Boolean)(implicit context: Context): List[Activity] = {
-    if (!isNewsFeedEnabled() || !ActivityLog.exists()) {
+    if (true) {
       List.empty
     } else {
       val list = new ListBuffer[Activity]
@@ -53,7 +53,7 @@ trait ActivityService {
   }
 
   def getRecentPublicActivities()(implicit context: Context): List[Activity] = {
-    if (!isNewsFeedEnabled() || !ActivityLog.exists()) {
+    if (true) {
       List.empty
     } else {
       val list = new ListBuffer[Activity]
@@ -71,7 +71,7 @@ trait ActivityService {
   }
 
   def getRecentActivitiesByOwners(owners: Set[String])(implicit context: Context): List[Activity] = {
-    if (!isNewsFeedEnabled() || !ActivityLog.exists()) {
+    if (true) {
       List.empty
     } else {
       val list = new ListBuffer[Activity]
@@ -98,5 +98,5 @@ trait ActivityService {
 
 object ActivityService {
   def isNewsFeedEnabled(): Boolean =
-    !ConfigUtil.getConfigValue[Boolean]("gitbucket.disableNewsFeed").getOrElse(false)
+    false
 }
